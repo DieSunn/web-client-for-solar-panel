@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    #map { height: 500px; }
+    #lineChart { height: 400px; width: 400px; }
+</style>
+
+<div id="map"></div>
+<canvas id="lineChart"></canvas>
+
+<script>
+    var map;
+
+    // Функция для инициализации карты на основе первой панели
+    function initializeMap(lat, lng) {
+        map = L.map('map').setView([lat, lng], 13);  // Начальная позиция на основе первой точки
+
+        // Добавление OpenStreetMap слоя
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+    }
+
+    // Функция для обработки кликов на точки панели и загрузки данных для графика
+    function onPanelClick(panelId) {
+        fetch(`/panel-characteristics/${panelId}/`)
+            .then(response => response.json())
+            .then(data => {
+                lineChart.data = data;
+                lineChart.update();
+            });
+    }
+
+    // Загрузка данных солнечных панелей и их отображение на карте
+    fetch('/solar-panels/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.length > 0) {
+                // Инициализация карты с координатами первой панели
+                initializeMap(data[0].lat, data[0].lng);
+
+                // Добавление панелей на карту
+                data.forEach(panel => {
+                    var circle = L.circle([panel.lat, panel.lng], {
+                        color: 'blue',
+                        fillColor: '#30f',
+                        fillOpacity: 0.5,
+                        radius: 100
+                    }).addTo(map);
+
+                    // Добавляем полное описание и тип панели в попап
+                    circle.bindPopup(`
+                        <b>Описание:</b> ${panel.description || 'Нет данных'}<br>
+                        <b>Тип:</b> ${panel.type || 'Нет данных'}
+                    `);
+
+                    // Обработчик клика на точку панели
+                    circle.on('click', function() {
+                        onPanelClick(panel.id);  // Передаем ID панели для загрузки данных
+                    });
+                });
+            } else {
+                alert('Нет данных о солнечных панелях.');
+            }
+        });
+
+    // Инициализация линейного графика
+    var lineCtx = document.getElementById('lineChart').getContext('2d');
+    var lineChart = new Chart(lineCtx, {
+        type: 'line',
+        data: {},  // Данные будут загружены позже
+    });
+</script>
+
+{% endblock content %}

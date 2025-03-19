@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Plotly Map</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <div id="myMap" style="width: 600px; height: 400px;"></div>
+
+    <script>
+        var data = [{
+            type: 'scattergeo',
+            mode: 'markers',
+            locations: ['USA', 'CAN', 'MEX'],
+            marker: {
+                size: [20, 30, 40]
+            }
+        }];
+
+        var layout = {
+            title: 'Map with Points',
+            geo: {
+                scope: 'north america',
+                showland: true
+            }
+        };
+
+        Plotly.newPlot('myMap', data, layout);
+    </script>
+</body>
+</html>

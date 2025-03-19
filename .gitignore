@@ -1,0 +1,22 @@
+# created by virtualenv automatically
+/.venv
+/venv
+
+# Исключить файлы временных данных
+*.pyc
+__pycache__/
+
+# Исключить файлы проекта PyCharm
+.idea/
+
+# Исключить файлы логов
+*.log
+
+# Исключить файлы настроек
+*.cfg
+*.conf
+*.po
+*.mo
+iot/.vscode/launch.json
+.DS_Store
+.vscode/launch.json
