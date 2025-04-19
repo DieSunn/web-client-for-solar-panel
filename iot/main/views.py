@@ -3,7 +3,7 @@ import time
 from django.views.generic import View
 from django.shortcuts import get_object_or_404, render
 from django.http import JsonResponse
-from .models import Solar_Panel, Characteristics
+from .models import Solar_Panel, Characteristics, Hub, Panel, PanelData
 from django.views.decorators.csrf import csrf_exempt
 from django.core import serializers
 import requests
@@ -14,52 +14,67 @@ from asgiref.sync import async_to_sync
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 import plotly.express as px
 import pandas as pd
+from django.utils.decorators import method_decorator
 import os
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
 from .serializers import SolarPanelSerializer, CharacteristicsSerializer
+from datetime import timedelta
+from django.utils import timezone
 
-SERVER_URL = 'http://127.0.0.1:8080'  # адрес интерфейса TCP сервера
+EXTERNAL_API_URL = "http://your-external-api-server.com/api/command"  # Замени на URL API
 
-# Класс представления Dashboard
 class DashboardView(View):
     def get(self, request, *args, **kwargs):
-        solar_panels = Solar_Panel.objects.all().order_by('id')
-        night_mode = request.COOKIES.get('night_mode', 'off')
+        # Получаем все панели
+        panels = Panel.objects.select_related('hub') \
+                              .all() \
+                              .order_by('id_panel')
 
+        # Ночной режим из cookie или GET-параметра
+        night_mode = request.COOKIES.get('night_mode', 'off')
         if 'night_mode' in request.GET:
             night_mode = request.GET['night_mode']
 
+        # AJAX‑запрос за данными панели
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            # Обработка AJAX запросов
-            selected_panel_number = request.GET.get('selected_panel')
-            if selected_panel_number == "all":
-                characteristics = Characteristics.objects.all().order_by('-date', 'time')
+            selected = request.GET.get('selected_panel')
+            if selected == 'all':
+                records = PanelData.objects.all().order_by('-date', 'time')
             else:
-                selected_panel = Solar_Panel.objects.get(
-                    installation_number=selected_panel_number)
-                characteristics = Characteristics.objects.filter(
-                    solar_panel=selected_panel).order_by('-date', 'time')
+                records = PanelData.objects.filter(
+                    id_panel=selected
+                ).order_by('-date', 'time')
 
-            # Сериализация данных для AJAX запросов
-            data = serializers.serialize('json', characteristics)
+            data = serializers.serialize('json', records)
             return JsonResponse({'data': data})
-        else:
 
-            # Формирование контекста для шаблона
-            context = {
-                'solar_panels': solar_panels,
-                'night_mode': night_mode,
+        # Рендер обычного GET
+        context = {
+            'panels': panels,
+            'night_mode': night_mode,
+        }
+        response = render(request, 'dashboard.html', context)
+        response.set_cookie('night_mode', night_mode)
+        return response
 
-            }
+class SolarPanelsView(View):
+    def get(self, request, *args, **kwargs):
+        panels = Panel.objects.select_related('hub').all().order_by('id_panel')
 
-            # Создание HTTP ответа
-            response = render(request, 'dashboard.html', context)
-            response.set_cookie('night_mode', night_mode)
-            return response
-
+        panel_list = []
+        for panel in panels:
+            panel_list.append({
+                'id_panel': panel.id_panel,
+                'hub_id': panel.hub.id_hub if panel.hub else None,
+                'lat': panel.lat if hasattr(panel, 'lat') else None,
+                'lng': panel.lng if hasattr(panel, 'lng') else None, 
+            })
+            
+        return JsonResponse(panel_list, safe=False)
+    
 # Получение данных по конкретной солнечной установке
 def get_characteristics_data_by_panel(request, panel_id):
     # фильтруем по переданному panel id.
@@ -102,13 +117,47 @@ def get_characteristics_by_date(request, panel_id, selected_date):
     return JsonResponse(data)
 
 def get_general_characteristics_data(request):
-    # Получение всех записей из модели
-    characteristics = Characteristics.objects.all().order_by('-date', 'time')
-    generated_power = [c.generated_power for c in characteristics]
-    consumed_power = [c.consumed_power for c in characteristics]
-    date = [c.date for c in reversed(characteristics)]
+    """
+    Возвращает данные для графиков:
+    - фильтрация по panel_id (строка) или все панели при 'all' или отсутствии параметра
+    - фильтрация по range: 'day', 'week', 'month'
+    - или фильтрация по start/end (YYYY-MM-DD)
+    """
+    qs = PanelData.objects.all()
 
-    # Сериализация данных в JSON для графика
+    # 1) Фильтрация по панели
+    panel_id = request.GET.get('panel_id')
+    if panel_id and panel_id != 'all':
+        qs = qs.filter(id_panel=panel_id)
+
+    # 2) Фильтрация по диапазону
+    date_range = request.GET.get('range')
+    today = timezone.localdate()
+    if date_range == 'day':
+        qs = qs.filter(date=today)
+    elif date_range == 'week':
+        qs = qs.filter(date__gte=today - timedelta(days=6), date__lte=today)
+    elif date_range == 'month':
+        qs = qs.filter(date__gte=today - timedelta(days=29), date__lte=today)
+    else:
+        # если переданы start и end — используем их
+        start = request.GET.get('start')
+        end   = request.GET.get('end')
+        if start and end:
+            qs = qs.filter(date__range=[start, end])
+
+    # 3) Сортировка по времени
+    qs = qs.order_by('date', 'time')
+
+    # 4) Формируем массивы для JS
+    generated_power = list(qs.values_list('generated_power', flat=True))
+    consumed_power  = list(qs.values_list('consumed_power', flat=True))
+    # Для дат склеиваем date+time в ISO‑строку
+    date = [
+        f"{rec.date.isoformat()}T{rec.time.isoformat()}"
+        for rec in qs.only('date', 'time')
+    ]
+
     data = {
         'generated_power': generated_power,
         'consumed_power': consumed_power,
@@ -116,39 +165,78 @@ def get_general_characteristics_data(request):
     }
     return JsonResponse(data)
 
-# Класс представления table.html
+# # Класс представления table.html
+# class CharTableView(View):
+#     def get(self, request, *args, **kwargs):
+#         night_mode = request.COOKIES.get('night_mode', 'off')
+
+#         # Проверяем параметр 'night_mode' в GET запросе
+#         if 'night_mode' in request.GET:
+#             night_mode = request.GET['night_mode']
+
+#         char = Characteristics.objects.order_by('-date', '-time')
+#         solar_panels = Solar_Panel.objects.all().order_by('id')
+
+#         # Инициализация пагинатора на 10 элементов/страница
+#         paginator = Paginator(char, 10)
+#         page_number=request.GET.get('page')
+
+#         try:
+#             characteristics=paginator.page(page_number)
+#         except PageNotAnInteger:
+#             # Если номер страницы не является целым числом, отображаем первую страницу
+#             characteristics = paginator.page(1)
+#         except EmptyPage:
+#              # Если страница находится за пределами доступных страниц, отображаем последнюю страницу
+#             characteristics = paginator.page(paginator.num_pages)
+
+#         response = render(request, "table.html", {
+#                           'characteristics': characteristics, 
+#                           'night_mode': night_mode, 
+#                           "solar_panels": solar_panels,
+#                           })
+#         response.set_cookie('night_mode', night_mode)
+
+#         return response
+
 class CharTableView(View):
     def get(self, request, *args, **kwargs):
         night_mode = request.COOKIES.get('night_mode', 'off')
-
-        # Проверяем параметр 'night_mode' в GET запросе
         if 'night_mode' in request.GET:
             night_mode = request.GET['night_mode']
 
-        char = Characteristics.objects.order_by('-date', '-time')
+        panel_data_records = PanelData.objects.order_by('-date', '-time')
         solar_panels = Solar_Panel.objects.all().order_by('id')
 
-        # Инициализация пагинатора на 10 элементов/страница
-        paginator = Paginator(char, 10)
-        page_number=request.GET.get('page')
+
+        panels = Panel.objects.select_related('hub').all().order_by('id_panel')
+        hubs = Hub.objects.all().order_by('id_hub')
+
+
+        paginator = Paginator(panel_data_records, 10)
+        page_number = request.GET.get('page')
 
         try:
-            characteristics=paginator.page(page_number)
+            page_obj = paginator.page(page_number) 
         except PageNotAnInteger:
-            # Если номер страницы не является целым числом, отображаем первую страницу
-            characteristics = paginator.page(1)
+            page_obj = paginator.page(1)
         except EmptyPage:
-             # Если страница находится за пределами доступных страниц, отображаем последнюю страницу
-            characteristics = paginator.page(paginator.num_pages)
+            page_obj = paginator.page(paginator.num_pages)
 
         response = render(request, "table.html", {
-                          'characteristics': characteristics, 
-                          'night_mode': night_mode, 
-                          "solar_panels": solar_panels,
-                          })
+
+                            'panel_data_records': page_obj,
+                            'night_mode': night_mode,
+                            "solar_panels": solar_panels,
+                            "panels": panels, 
+                            "hubs": hubs, 
+                            })
+
+        # Set the night mode cookie
         response.set_cookie('night_mode', night_mode)
 
         return response
+
 
 # panels.html
 def solar_panels(request):
@@ -168,7 +256,6 @@ def solar_panels(request):
 
 # ??? TODO DOC (ALEXEY)
 def characteristics_data(request):
-    # Get the selected solar panel if provided
     selected_panel_id = request.GET.get('solar_panel')
     if selected_panel_id:
         characteristics = Characteristics.objects.filter(
@@ -176,7 +263,6 @@ def characteristics_data(request):
     else:
         characteristics = Characteristics.objects.all()
 
-    # Prepare the data for the response
     data = {
         'dates': [char.date.strftime("%Y-%m-%d") for char in characteristics],
         'generated_power': [char.generated_power for char in characteristics],
@@ -212,7 +298,6 @@ def get_recent_char(request, panel_id):
     except Characteristics.DoesNotExist:
         return JsonResponse({'error': 'Characteristics not found'}, status=404)
 
-# panel_detail.html
 def panel_detail(request):
     night_mode = request.COOKIES.get('night_mode', 'off')
     # Извлечение ID панели из GET-запроса
@@ -289,75 +374,6 @@ def wind_direction(degrees):
     else:
         return 'Неизвестное направление'
 
-
-### функции TCP сервера
-
-# получить список клиентов и их новые данные (ip, port)
-def get_connected_clients(request):
-    try:
-        response = requests.get(f"{SERVER_URL}/clients")
-        if response.ok:
-            print(response.json())
-            return JsonResponse(response.json())
-        else:
-            return JsonResponse({"error": "Ошибка при получении списка клиентов"}, status=500)
-    except Exception as e:
-        return JsonResponse({"error": "Ошибка при получении списка клиентов"}, status=500)
-
-# Ставим активного клиента (которому сообщение отправляем)
-def set_active_client(request):
-    client_id = request.POST.get('client_id')
-    response = requests.post(
-        f"{SERVER_URL}/set_active_client", json={"client_id": client_id})
-    if response.ok:
-        return JsonResponse({"message": "Активный клиент установлен"})
-    else:
-        return JsonResponse({"error": "Ошибка при установке активного клиента"}, status=500)
-
-# Отправка сообщения
-def send_message_to_client(request):
-    message = request.POST.get('message')
-    response = requests.post(
-        f"{SERVER_URL}/send_message", json={"message": message})
-    if response.ok:
-        return JsonResponse({"message": "Сообщение отправлено"})
-    else:
-        return JsonResponse({"error": "Ошибка при отправке сообщения"}, status=500)
-
-
-# Метод, выполняемый при получении сигнала о подключении/отключении клиента, передаёт информацию в представление websocket
-@csrf_exempt
-def update_client_status(request):
-
-    # Задержка выполнения представления на 0.5 секунд, чтобы успели данные по установке обновиться
-    time.sleep(0.5)
-    if request.method == 'POST':
-        try:
-            # JSON структура
-            data = json.loads(request.body)
-            # Получение нового порта и ip адреса
-            sol = Solar_Panel.objects.get(id=data['client_id'])
-            data['port'] = sol.port
-            data['address'] = sol.ip_address
-
-            # Получить слой каналов
-            channel_layer = get_channel_layer()
-
-            # Асинхронно отправить сообщение в группу
-            async_to_sync(channel_layer.group_send)(
-                "client_status_group",
-                {
-                    "type": "send.client.status",  # Соответствует методу в Consumer
-                    "data": data  # Данные, которые вы хотите отправить
-                }
-            )
-
-            return JsonResponse({"message": "Data received and processed successfully"})
-        except json.JSONDecodeError as e:
-            return JsonResponse({"error": "Invalid JSON data"}, status=400)
-    else:
-        return JsonResponse({"error": "Invalid request method"}, status=405)
-
 def test_chart(request):
     characteristic = Characteristics.objects.all()
 
@@ -384,24 +400,6 @@ def test_chart(request):
     context = {'chart': chart, 'chart1': chart1}
     return render (request, 'test_chart.html', context)
 
-
-# Представление для данных солнечных панелей
-def solar_panels_data(request):
-    panels = Solar_Panel.objects.all()
-    data = []
-    
-    for panel in panels:
-        if panel.coordinates:
-            lat, lng = map(float, panel.coordinates.split(','))  # Преобразуем координаты в числа
-            data.append({
-                'id': panel.id,
-                'lat': lat,
-                'lng': lng,
-                'description': panel.description,
-                'type': panel.type,
-            })
-    
-    return JsonResponse(data, safe=False)
 
 # Представление для данных характеристик солнечной панели
 def solar_panel_characteristics(request, panel_id):
@@ -509,3 +507,81 @@ class DataSubmissionAPIView(APIView):
             queryset = queryset.filter(date__range=[start_date, end_date])
         serializer = CharacteristicsSerializer(queryset, many=True)
         return Response(serializer.data)
+    
+class ManagementView(View):
+    def get(self, request, *args, **kwargs):
+        night_mode = request.COOKIES.get('night_mode', 'off')
+        if 'night_mode' in request.GET:
+            night_mode = request.GET['night_mode']
+
+        hubs = Hub.objects.prefetch_related('panel_set').order_by('id_hub')
+
+        context = {
+            'hubs': hubs,
+            'night_mode': night_mode,
+        }
+        return render(request, 'management.html', context)
+
+class PanelDetailView(View):
+    def get(self, request, hub_id, panel_id, *args, **kwargs):
+        night_mode = request.COOKIES.get('night_mode', 'off')
+        if 'night_mode' in request.GET:
+            night_mode = request.GET['night_mode']
+
+        panel = get_object_or_404(Panel.objects.select_related('hub'), hub__id_hub=hub_id, id_panel=panel_id)
+
+        context = {
+            'panel': panel,
+            'night_mode': night_mode,
+        }
+        return render(request, 'panel_detail.html', context)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ApiCommandView(View):
+    def post(self, request, *args, **kwargs):
+        try:
+            data = json.loads(request.body)
+            command = data.get("command")
+            hub_id = data.get("hubId")
+            panel_id = data.get("panelId")
+            vertical_position = data.get("verticalPosition")
+            horizontal_position = data.get("horizontalPosition")
+
+            if not command or not hub_id:
+                 return JsonResponse({"status": "error", "message": "Command and HubId are required"}, status=400)
+
+            api_payload = {"Command": command, "HubId": hub_id}
+
+            if command in ["SEND_DATA", "ROTATE", "STATUS", "CHECK_STATUS"] and panel_id:
+                 api_payload["PanelId"] = panel_id
+
+            if command == "ROTATE":
+                if vertical_position is not None and horizontal_position is not None:
+                    api_payload["VerticalPosition"] = vertical_position
+                    api_payload["HorizontalPosition"] = horizontal_position
+                else:
+                    return JsonResponse({"status": "error", "message": "VerticalPosition and HorizontalPosition are required for ROTATE command"}, status=400)
+
+            response = requests.post(EXTERNAL_API_URL, json=api_payload)
+
+            if response.status_code == 200:
+                try:
+                    api_response_data = response.json()
+                    return JsonResponse({"status": "success", "api_response": api_response_data})
+                except json.JSONDecodeError:
+                     return JsonResponse({"status": "success", "message": "Command sent successfully, but API response is not JSON.", "api_response": response.text})
+            else:
+                try:
+                    api_response_data = response.json()
+                    return JsonResponse({"status": "error", "message": f"API returned status code {response.status_code}", "api_response": api_response_data}, status=response.status_code)
+                except json.JSONDecodeError:
+                     return JsonResponse({"status": "error", "message": f"API returned status code {response.status_code}", "api_response": response.text}, status=response.status_code)
+
+
+        except json.JSONDecodeError:
+            return JsonResponse({"status": "error", "message": "Invalid JSON in request body"}, status=400)
+        except requests.exceptions.RequestException as e:
+            return JsonResponse({"status": "error", "message": f"Error communicating with external API: {e}"}, status=500)
+        except Exception as e:
+            return JsonResponse({"status": "error", "message": f"An unexpected error occurred: {e}"}, status=500)

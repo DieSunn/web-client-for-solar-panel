@@ -15,8 +15,14 @@
 
   <section class="controls">
     <div class="control-group">
-      <label>Установка:</label>
-      <button id="openMapModalBtn" class="btn btn-map-trigger">Выбрать панель</button>
+      <label for="panelSelect">Установка:</label>
+      <select id="panelSelect" class="custom-select">
+        <option value="all">Все</option>
+        {% for panel in panels %}
+          <option value="{{ panel.id_panel }}">{{ panel.id_panel }} @ {{ panel.hub.id_hub }}</option>
+        {% endfor %}
+      </select>
+      <button id="openMapModalBtn" class="btn btn-map-trigger">Выбрать на карте</button>
     </div>
 
     <div class="control-group">
@@ -43,10 +49,6 @@
         <option value="night">Ночь</option>
       </select>
     </div>
-  </section>
-
-  <section class="selected-panel-info">
-    <h2 id="selectedPanelName">Выбраны: Все панели</h2>
   </section>
 
   <section class="charts">
@@ -334,34 +336,14 @@ body.night-mode .btn:hover {
 }
 
 .btn-map-trigger {
-    /* margin-top: 10px; */ /* Убрали отступ, т.к. селект удален */
+    margin-top: 10px; /* Отступ для кнопки карты */
     background-color: var(--accent-color);
     color: white;
     border: none;
     border-radius: 5px;
-    padding: 10px; /* Добавим паддинг кнопке */
-    width: 100%; /* Растянем на всю ширину группы */
-    box-sizing: border-box;
 }
 .btn-map-trigger:hover {
     background-color: var(--accent-hover);
-}
-
-/* Стили для блока отображения выбранной панели */
-.selected-panel-info {
-    text-align: center; /* Центрируем текст */
-    margin-bottom: 20px; /* Отступ снизу */
-    padding: 10px;
-    background-color: var(--header-bg); /* Используем фон как у контролов */
-    border-radius: var(--border-radius);
-    box-shadow: var(--shadow);
-}
-
-.selected-panel-info h2 {
-    margin: 0;
-    font-size: 18px; /* Размер шрифта для названия панели */
-    color: var(--text-color);
-    font-weight: 500; /* Средняя жирность */
 }
 
 
@@ -658,9 +640,6 @@ body.night-mode .chart-loader {
     .night-mode-toggle {
         margin-top: 10px;
     }
-    .selected-panel-info h2 {
-        font-size: 16px;
-    }
 }
 
 </style>
@@ -674,7 +653,7 @@ body.night-mode .chart-loader {
 <script>
 $(function() {
   // --- Переменные ---
-  // const panelSelect    = $('#panelSelect'); // Удалено
+  const panelSelect    = $('#panelSelect');
   const dayBtn         = $('#dayBtn');
   const weekBtn        = $('#weekBtn');
   const monthBtn       = $('#monthBtn');
@@ -688,13 +667,11 @@ $(function() {
   const closeModalBtn  = $('.close-modal-btn');  // Кнопка закрытия модального окна
   const modalTabs      = $('.modal-tabs .tab-link'); // Вкладки в модальном окне
   const modalPanelList = $('#modalPanelList'); // Список панелей в модальном окне
-  const selectedPanelNameDisplay = $('#selectedPanelName'); // Элемент для отображения имени панели
 
   let currentData      = null;
   let modalMapInstance = null; // Экземпляр карты Leaflet в модальном окне
   let markers          = {};   // Объекты маркеров на карте
   let solarPanelData   = [];   // Данные о панелях для списка
-  let selectedPanelId  = 'all'; // Храним ID выбранной панели здесь, по умолчанию 'all'
 
   // --- Инициализация ---
 
@@ -757,6 +734,7 @@ $(function() {
   // Индикатор загрузки (опционально)
   function showLoading(element = '.charts') {
       $(element).css('opacity', 0.5); // Пример простого индикатора
+      // Можно добавить спиннер как в оригинальном коде
   }
   function hideLoading(element = '.charts') {
       $(element).css('opacity', 1);
@@ -795,6 +773,7 @@ $(function() {
 
   // Показ сообщения об ошибке
   function showError(msg) {
+    // Можно использовать более сложную систему уведомлений
     alert(`Ошибка: ${msg}`);
   }
 
@@ -820,6 +799,7 @@ $(function() {
     const filteredIndices = data.date.map((d, i) => {
         const hour = moment(d).hour(); // Используем moment.js для получения часа
         const ranges = { morning:[6,12], afternoon:[12,18], evening:[18,24], night:[0,6] };
+        // Корректируем логику для ночи (0-6)
         const isInRange = timeFilterValue === 'all' ||
                           (timeFilterValue === 'night' ? (hour >= ranges.night[0] && hour < ranges.night[1]) :
                           (hour >= ranges[timeFilterValue][0] && hour < ranges[timeFilterValue][1]));
@@ -829,13 +809,16 @@ $(function() {
     const dates = filteredIndices.map(i => moment(data.date[i]).format('DD.MM HH:mm')); // Форматируем дату
     const gen   = filteredIndices.map(i => data.generated_power[i]);
     const cons  = filteredIndices.map(i => data.consumed_power[i]);
+    // Рассчитываем эффективность, проверяя деление на 0 и наличие данных
     const eff = gen.map((g, index) => {
         const c = cons[index];
+        // Проверяем, что g и c являются числами и g > 0
         if (typeof g === 'number' && typeof c === 'number' && g > 0) {
+            // Ограничиваем эффективность 100%
             const efficiencyValue = (c / g) * 100;
             return Math.min(efficiencyValue, 100).toFixed(1);
         }
-        return 0;
+        return 0; // Возвращаем 0, если генерация <= 0 или данные некорректны
     });
 
 
@@ -854,9 +837,10 @@ $(function() {
   // Получение данных с сервера
   function fetchData(params = {}) {
     showLoading();
-    // Используем переменную selectedPanelId вместо panelSelect.val()
-    if (selectedPanelId !== 'all') {
-        params.panel_id = selectedPanelId; // Используем ID из переменной
+    // Добавляем текущее значение panelSelect, если оно не 'all'
+    const selectedPanel = panelSelect.val();
+    if (selectedPanel !== 'all') {
+        params.panel_id = selectedPanel;
     } else {
         delete params.panel_id; // Удаляем panel_id, если выбраны "Все"
     }
@@ -899,20 +883,18 @@ $(function() {
       solarPanelData.forEach(p => {
           if (p.lat != null && p.lng != null) { // Проверка наличия координат
               const marker = L.circleMarker([p.lat, p.lng], {
-                  radius: 8, fillColor: "#ff7800", color: "#000",
-                  weight: 1, opacity: 1, fillOpacity: 0.8
+                  radius: 8, // Размер маркера
+                  fillColor: "#ff7800", // Цвет заливки
+                  color: "#000", // Цвет обводки
+                  weight: 1,
+                  opacity: 1,
+                  fillOpacity: 0.8
               }).addTo(modalMapInstance)
-                .bindPopup(`<b>ID Панели:</b> ${p.id_panel}<br><b>Хаб:</b> ${p.hub_id || 'N/A'}`);
+                .bindPopup(`<b>ID Панели:</b> ${p.id_panel}<br><b>Хаб:</b> ${p.hub_id || 'N/A'}`); // Используем hub_id
 
-              // Обработчик клика на маркер
               marker.on('click', () => {
-                  // panelSelect.val(p.id_panel).trigger('change'); // Удалено
-                  selectedPanelId = p.id_panel; // Обновляем ID
-                  const panelText = `Панель ${p.id_panel} (Хаб: ${p.hub_id || 'N/A'})`;
-                  selectedPanelNameDisplay.text(panelText); // Обновляем текст над графиками
+                  panelSelect.val(p.id_panel).trigger('change'); // Обновляем основной селект
                   mapModal.hide(); // Закрываем модальное окно
-                  setActivePeriodButton(dayBtn); // Сбрасываем период на "День"
-                  fetchData({ range: 'day' });   // Загружаем данные для выбранной панели
               });
               markers[p.id_panel] = marker;
           } else {
@@ -925,39 +907,17 @@ $(function() {
   // Заполнение списка панелей в модальном окне
   function populatePanelList() {
       modalPanelList.empty(); // Очищаем старый список
-
-      // --- Добавляем опцию "Все панели" ---
-      const allPanelsItem = $('<li></li>').text('Все панели');
-      allPanelsItem.data('panel-id', 'all'); // Сохраняем ID 'all'
-      allPanelsItem.on('click', function() {
-          selectedPanelId = $(this).data('panel-id'); // Устанавливаем 'all'
-          selectedPanelNameDisplay.text('Выбраны: Все панели'); // Обновляем текст
-          mapModal.hide(); // Закрываем модальное окно
-          setActivePeriodButton(dayBtn); // Сбрасываем период на "День"
-          fetchData({ range: 'day' });   // Загружаем данные для всех панелей
-      });
-      modalPanelList.append(allPanelsItem);
-      // --- Конец добавления "Все панели" ---
-
-      if (solarPanelData.length === 0 && selectedPanelId === 'all') { // Проверка, чтобы не дублировать сообщение
+      if (solarPanelData.length === 0) {
           modalPanelList.append('<li>Нет данных о панелях.</li>');
-          // Не делаем return, чтобы список "Все панели" остался
+          return;
       }
-
-      // Добавляем остальные панели
       solarPanelData.forEach(p => {
-          const panelText = `Панель ${p.id_panel} (Хаб: ${p.hub_id || 'N/A'})`;
-          const listItem = $('<li></li>').text(panelText);
+          const listItem = $(`<li></li>`).text(`Панель ${p.id_panel} (Хаб: ${p.hub_id || 'N/A'})`);
           listItem.data('panel-id', p.id_panel); // Сохраняем ID панели
-          // Обработчик клика на элемент списка
           listItem.on('click', function() {
               const panelId = $(this).data('panel-id');
-              // panelSelect.val(panelId).trigger('change'); // Удалено
-              selectedPanelId = panelId; // Обновляем ID
-              selectedPanelNameDisplay.text(panelText); // Обновляем текст над графиками
+              panelSelect.val(panelId).trigger('change'); // Обновляем основной селект
               mapModal.hide(); // Закрываем модальное окно
-              setActivePeriodButton(dayBtn); // Сбрасываем период на "День"
-              fetchData({ range: 'day' });   // Загружаем данные для выбранной панели
           });
           modalPanelList.append(listItem);
       });
@@ -975,15 +935,18 @@ $(function() {
           .fail(() => {
               showError('Не удалось загрузить данные о панелях');
               modalPanelList.html('<li>Ошибка загрузки списка.</li>');
-              // Добавляем "Все панели" даже при ошибке загрузки остальных
-              populatePanelList();
           });
   }
 
 
   // --- Обработчики событий ---
 
-  // Обработчик изменения panelSelect удален
+  // Изменение основной выборки панелей
+  panelSelect.change(() => {
+      // Сбрасываем период на "День" при смене панели
+      setActivePeriodButton(dayBtn);
+      fetchData({ range: 'day' }); // Запрашиваем данные для дня
+  });
 
   // Кнопки выбора периода
   dayBtn.click(() => { setActivePeriodButton(dayBtn); fetchData({ range: 'day' }); });
@@ -1011,11 +974,14 @@ $(function() {
     if (!currentData || !currentData.date || currentData.date.length === 0) {
         return showError('Нет данных для экспорта');
     }
+    // Используем отфильтрованные данные для экспорта, если нужно
+    // Или просто экспортируем все currentData
     const dates = currentData.date, gen = currentData.generated_power, cons = currentData.consumed_power;
-    const eff = gen.map((g,i)=> g>0 ? Math.min((cons[i]/g*100), 100).toFixed(1) : 0);
-    let csv = 'Дата;Генерация (кВт);Потребление (кВт);Эффективность (%)\n';
+    const eff = gen.map((g,i)=> g>0 ? Math.min((cons[i]/g*100), 100).toFixed(1) : 0); // Эффективность не > 100%
+    let csv = 'Дата;Генерация (кВт);Потребление (кВт);Эффективность (%)\n'; // Используем ; как разделитель
     dates.forEach((d,i)=> csv += `${moment(d).format('DD.MM.YYYY HH:mm')};${gen[i]};${cons[i]};${eff[i]}\n`);
 
+    // Добавляем BOM для корректного отображения кириллицы в Excel
     const BOM = "\uFEFF";
     const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -1024,7 +990,7 @@ $(function() {
     link.setAttribute("download", `data_${moment().format('YYYYMMDD_HHmmss')}.csv`);
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    document.body.removeChild(link); // Убираем ссылку после клика
     URL.revokeObjectURL(url);
   });
 
@@ -1036,6 +1002,12 @@ $(function() {
     const mode = nightToggle.is(':checked') ? 'on' : 'off';
     $('body').toggleClass('night-mode', nightToggle.is(':checked'));
     document.cookie = `night_mode=${mode}; path=/; max-age=31536000`; // Сохраняем на год
+    // Перерисовка графиков для адаптации к теме (опционально)
+    // powerChart.options.scales.x.ticks.color = mode === 'on' ? '#bdc3c7' : '#666';
+    // powerChart.options.scales.y.ticks.color = mode === 'on' ? '#bdc3c7' : '#666';
+    // ... и т.д. для всех элементов графиков
+    // powerChart.update();
+    // effChart.update();
   });
 
   // --- Логика модального окна ---
@@ -1081,9 +1053,9 @@ $(function() {
   });
 
   // --- Первоначальная загрузка данных ---
-  fetchPanelData(); // Загружаем данные о панелях (и заполняем список)
+  fetchPanelData(); // Загружаем данные о панелях
   setActivePeriodButton(dayBtn); // Устанавливаем "День" активным по умолчанию
-  fetchData({ range: 'day' }); // Загружаем данные для графиков за день (для 'all' панелей)
+  fetchData({ range: 'day' }); // Загружаем данные для графиков за день
 
 });
 </script>

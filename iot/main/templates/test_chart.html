@@ -2,75 +2,407 @@
 
 {% block content %}
 <style>
-    #map { height: 500px; }
-    #lineChart { height: 400px; width: 400px; }
+    .container {
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    .dashboard-title {
+        margin-bottom: 20px;
+        color: #2c3e50;
+    }
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    @media (min-width: 992px) {
+        .dashboard-grid {
+            grid-template-columns: 3fr 2fr;
+        }
+    }
+    .card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+    .card-header {
+        padding: 15px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #eaeaea;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .card-body {
+        padding: 15px;
+    }
+    #map {
+        height: 500px;
+        width: 100%;
+        border-radius: 0 0 8px 8px;
+    }
+    #lineChart {
+        height: 400px;
+        width: 100%;
+    }
+    .panel-info {
+        margin-top: 20px;
+    }
+    .info-panel {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 20px;
+    }
+    .panel-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-top: 15px;
+    }
+    .stat-card {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        text-align: center;
+    }
+    .stat-value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #3498db;
+    }
+    .stat-label {
+        color: #7f8c8d;
+        font-size: 14px;
+    }
+    .loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100px;
+    }
+    .loading-spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3498db;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    .time-filter {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+    .time-btn {
+        padding: 5px 15px;
+        background: #f1f1f1;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .time-btn.active {
+        background: #3498db;
+        color: white;
+    }
+    .legend {
+        display: flex;
+        gap: 15px;
+        margin-top: 10px;
+    }
+    .legend-item {
+        display: flex;
+        align-items: center;
+        font-size: 14px;
+    }
+    .legend-color {
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        margin-right: 5px;
+    }
 </style>
 
-<div id="map"></div>
-<canvas id="lineChart"></canvas>
+<div class="container">
+    <h1 class="dashboard-title">Мониторинг солнечных панелей</h1>
+    
+    <div class="dashboard-grid">
+        <div class="card">
+            <div class="card-header">
+                <h2>Расположение панелей</h2>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #30f;"></div>
+                        <span>Активные панели</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #f44336;"></div>
+                        <span>Требуется обслуживание</span>
+                    </div>
+                </div>
+            </div>
+            <div id="map"></div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h2>Производительность панели</h2>
+                <div class="time-filter">
+                    <button class="time-btn active" data-period="day">День</button>
+                    <button class="time-btn" data-period="week">Неделя</button>
+                    <button class="time-btn" data-period="month">Месяц</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="chart-container">
+                    <canvas id="lineChart"></canvas>
+                </div>
+                <div id="loading-chart" class="loading">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="panel-info" id="panel-details" style="display: none;">
+        <div class="card">
+            <div class="card-header">
+                <h2>Информация о панели: <span id="panel-title">Выберите панель</span></h2>
+            </div>
+            <div class="card-body">
+                <div id="panel-description"></div>
+                
+                <div class="panel-stats">
+                    <div class="stat-card">
+                        <div class="stat-value" id="panel-power">-</div>
+                        <div class="stat-label">Текущая мощность (кВт)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="panel-daily">-</div>
+                        <div class="stat-label">Выработка за день (кВтч)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="panel-efficiency">-</div>
+                        <div class="stat-label">Эффективность (%)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="panel-temperature">-</div>
+                        <div class="stat-label">Температура (°C)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
     var map;
+    var currentPanelId = null;
+    var lineChart = null;
+    var currentPeriod = 'day';
+    var markers = [];
 
-    // Функция для инициализации карты на основе первой панели
+    // Скрываем загрузку графика изначально
+    document.getElementById('chart-container').style.display = 'none';
+    
+    // Функция для инициализации карты
     function initializeMap(lat, lng) {
-        map = L.map('map').setView([lat, lng], 13);  // Начальная позиция на основе первой точки
+        map = L.map('map').setView([lat, lng], 13);
 
-        // Добавление OpenStreetMap слоя
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
     }
 
-    // Функция для обработки кликов на точки панели и загрузки данных для графика
-    function onPanelClick(panelId) {
-        fetch(`/panel-characteristics/${panelId}/`)
+    // Функция для отображения панелей на карте
+    function displayPanels(panels) {
+        // Очищаем предыдущие маркеры
+        markers.forEach(marker => map.removeLayer(marker));
+        markers = [];
+        
+        panels.forEach(panel => {
+            // Определяем цвет маркера в зависимости от статуса
+            const color = panel.status === 'maintenance' ? '#f44336' : '#30f';
+            
+            var circle = L.circle([panel.lat, panel.lng], {
+                color: color,
+                fillColor: color,
+                fillOpacity: 0.5,
+                radius: 100
+            }).addTo(map);
+            
+            markers.push(circle);
+
+            // Создаем улучшенный попап с дополнительной информацией
+            const popupContent = `
+                <div style="min-width: 200px;">
+                    <h3 style="margin: 0 0 10px 0;">${panel.name || 'Панель ' + panel.id}</h3>
+                    <p><strong>Описание:</strong> ${panel.description || 'Нет данных'}</p>
+                    <p><strong>Тип:</strong> ${panel.type || 'Нет данных'}</p>
+                    <p><strong>Статус:</strong> ${panel.status === 'maintenance' ? 'Требуется обслуживание' : 'Активна'}</p>
+                    <button onclick="selectPanel(${panel.id})" style="background: #3498db; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-top: 5px;">Подробнее</button>
+                </div>
+            `;
+            
+            circle.bindPopup(popupContent);
+            
+            // Обработчик клика на панель
+            circle.on('click', function() {
+                selectPanel(panel.id);
+            });
+        });
+    }
+
+    // Функция для выбора панели и загрузки данных
+    function selectPanel(panelId) {
+        currentPanelId = panelId;
+        
+        // Показываем загрузку
+        document.getElementById('chart-container').style.display = 'none';
+        document.getElementById('loading-chart').style.display = 'flex';
+        
+        // Показываем блок с информацией о панели
+        document.getElementById('panel-details').style.display = 'block';
+        
+        // Загружаем данные о панели
+        fetch(`/panel-details/${panelId}/`)
             .then(response => response.json())
             .then(data => {
-                lineChart.data = data;
-                lineChart.update();
+                // Обновляем информацию о панели
+                document.getElementById('panel-title').textContent = data.name || 'Панель ' + panelId;
+                document.getElementById('panel-description').innerHTML = `
+                    <p><strong>Описание:</strong> ${data.description || 'Нет данных'}</p>
+                    <p><strong>Тип:</strong> ${data.type || 'Нет данных'}</p>
+                    <p><strong>Дата установки:</strong> ${data.installDate || 'Нет данных'}</p>
+                    <p><strong>Последнее обслуживание:</strong> ${data.lastMaintenance || 'Нет данных'}</p>
+                `;
+                
+                // Обновляем статистику
+                document.getElementById('panel-power').textContent = data.currentPower || '-';
+                document.getElementById('panel-daily').textContent = data.dailyProduction || '-';
+                document.getElementById('panel-efficiency').textContent = data.efficiency || '-';
+                document.getElementById('panel-temperature').textContent = data.temperature || '-';
+                
+                // Загружаем данные для графика
+                loadChartData(panelId, currentPeriod);
             });
     }
 
-    // Загрузка данных солнечных панелей и их отображение на карте
-    fetch('/solar-panels/')
-        .then(response => response.json())
-        .then(data => {
-            if (data.length > 0) {
-                // Инициализация карты с координатами первой панели
-                initializeMap(data[0].lat, data[0].lng);
+    // Функция для загрузки данных графика
+    function loadChartData(panelId, period) {
+        fetch(`/panel-characteristics/${panelId}/?period=${period}`)
+            .then(response => response.json())
+            .then(data => {
+                // Скрываем загрузку
+                document.getElementById('loading-chart').style.display = 'none';
+                document.getElementById('chart-container').style.display = 'block';
+                
+                // Обновляем или создаем график
+                updateChart(data);
+            });
+    }
 
-                // Добавление панелей на карту
-                data.forEach(panel => {
-                    var circle = L.circle([panel.lat, panel.lng], {
-                        color: 'blue',
-                        fillColor: '#30f',
-                        fillOpacity: 0.5,
-                        radius: 100
-                    }).addTo(map);
+    // Функция для обновления графика
+    function updateChart(data) {
+        const ctx = document.getElementById('lineChart').getContext('2d');
+        
+        // Если график уже создан, обновляем данные
+        if (lineChart) {
+            lineChart.data = data;
+            lineChart.update();
+        } else {
+            // Иначе создаем новый график
+            lineChart = new Chart(ctx, {
+                type: 'line',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        tooltip: {
+                            enabled: true,
+                        },
+                        legend: {
+                            position: 'top',
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
 
-                    // Добавляем полное описание и тип панели в попап
-                    circle.bindPopup(`
-                        <b>Описание:</b> ${panel.description || 'Нет данных'}<br>
-                        <b>Тип:</b> ${panel.type || 'Нет данных'}
-                    `);
-
-                    // Обработчик клика на точку панели
-                    circle.on('click', function() {
-                        onPanelClick(panel.id);  // Передаем ID панели для загрузки данных
-                    });
-                });
-            } else {
-                alert('Нет данных о солнечных панелях.');
-            }
+    // Загрузка панелей при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function() {
+        // Показываем загрузку
+        document.getElementById('loading-chart').style.display = 'flex';
+        
+        // Загружаем данные о панелях
+        fetch('/solar-panels/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.length > 0) {
+                    // Инициализируем карту на основе среднего положения всех панелей
+                    const avgLat = data.reduce((sum, panel) => sum + panel.lat, 0) / data.length;
+                    const avgLng = data.reduce((sum, panel) => sum + panel.lng, 0) / data.length;
+                    
+                    initializeMap(avgLat, avgLng);
+                    displayPanels(data);
+                    
+                    // Выбираем первую панель автоматически
+                    selectPanel(data[0].id);
+                } else {
+                    // Если нет данных, инициализируем карту с дефолтными координатами
+                    initializeMap(55.7558, 37.6173); // Москва
+                    alert('Нет данных о солнечных панелях.');
+                }
+            });
+        
+        // Обработчики для кнопок выбора периода
+        document.querySelectorAll('.time-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Убираем активный класс со всех кнопок
+                document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+                
+                // Добавляем активный класс на нажатую кнопку
+                this.classList.add('active');
+                
+                // Получаем период из атрибута
+                currentPeriod = this.dataset.period;
+                
+                // Если выбрана панель, загружаем данные для нового периода
+                if (currentPanelId) {
+                    // Показываем загрузку
+                    document.getElementById('chart-container').style.display = 'none';
+                    document.getElementById('loading-chart').style.display = 'flex';
+                    
+                    loadChartData(currentPanelId, currentPeriod);
+                }
+            });
         });
-
-    // Инициализация линейного графика
-    var lineCtx = document.getElementById('lineChart').getContext('2d');
-    var lineChart = new Chart(lineCtx, {
-        type: 'line',
-        data: {},  // Данные будут загружены позже
     });
 </script>
-
 {% endblock content %}

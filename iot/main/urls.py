@@ -23,20 +23,15 @@ urlpatterns = [
          name='get-general-characteristics-data'),  # сводка общая
     path('socket/', views.socket, name='socket'), # устарело
     path('table/', CharTableView.as_view(), name='table'),
-    path('panels/', views.solar_panels, name='panels'),
     path('characteristics-data/', characteristics_data,
          name='characteristics-data'),
-    path('get_clients/', views.get_connected_clients, name='get_clients'),
-    path('set_active_client/', views.set_active_client, name='set_active_client'),
-    path('send_message/', views.send_message_to_client, name='send_message'),
-    path('panels/panel_detail', views.panel_detail, name='panel_detail'),
     path('get_recent_char/<int:panel_id>/', views.get_recent_char, name='get_recent_char'),
-    path('get_weather/', views.get_weather, name='get_weather'),
-    path('update_client_status/', views.update_client_status, name='update_client_status'),
     path('test_chart/', views.test_chart, name='test_chart'),
-    path('solar-panels/', views.solar_panels_data, name='solar_panels_data'),
     path('panel-characteristics/<int:panel_id>/', views.solar_panel_characteristics, name='panel_characteristics'),
     path('api/', include(router.urls)),
     path('api/data-submission/', DataSubmissionAPIView.as_view(), name='data-submission'),
-    # другие маршруты...
+    path('solar-panels/', SolarPanelsView.as_view(), name='solar-panels'),
+    path('manage/', views.ManagementView.as_view(), name='manage_panels'),
+    path('manage/<str:hub_id>/<str:panel_id>/', views.PanelDetailView.as_view(), name='panel_detail'),
+    path('api/send_command/', views.ApiCommandView.as_view(), name='api_send_command'),
 ]
