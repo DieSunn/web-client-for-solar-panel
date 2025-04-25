@@ -100,12 +100,21 @@ DATABASES = {
         'HOST': 'localhost',
         'PORT': '5432',
     },
+    'solar_panel_db': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'test',   
+        'USER': 'postgres',      
+        'PASSWORD': '123', 
+        'HOST': 'localhost',      
+        'PORT': '5432',                        
+    },
 }
 
+# Пример замены
 # DATABASES = {
 # 'default': {
 #         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-#         'NAME': 'DBForWebServer',
+#         'NAME': 'имя_бд',
 #         'USER': 'postgres',
 #         'PASSWORD': '1',
 #         'HOST': 'localhost',

@@ -34,4 +34,5 @@ urlpatterns = [
     path('manage/', views.ManagementView.as_view(), name='manage_panels'),
     path('manage/<str:hub_id>/<str:panel_id>/', views.PanelDetailView.as_view(), name='panel_detail'),
     path('api/send_command/', views.ApiCommandView.as_view(), name='api_send_command'),
+    path('api/sync-panel-data/', views.sync_latest_panel_data_to_main_models, name='sync_latest_panel_data'),
 ]

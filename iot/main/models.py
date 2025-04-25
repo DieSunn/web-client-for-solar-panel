@@ -128,3 +128,36 @@ class PanelData(models.Model):
 
     def __str__(self):
         return f"Data {self.id} for {self.id_panel}@{self.id_hub} on {self.date} {self.time}"
+
+class LatestPanelData(models.Model):
+    # Используем id_panel и id_hub как простой идентификатор, не Foreign Key
+    # если вам не нужны связи с моделями Panel/Hub в основной БД
+    id_panel = models.CharField(max_length=50)
+    id_hub = models.CharField(max_length=50)
+
+    generated_power = models.FloatField(null=True, blank=True) # Возможно, данные могут быть None
+    consumed_power = models.FloatField(null=True, blank=True) # Возможно, данные могут быть None
+    vertical_position = models.FloatField(null=True, blank=True) # Возможно, данные могут быть None
+    horizontal_position = models.FloatField(null=True, blank=True) # Возможно, данные могут быть None
+    last_data_date = models.DateField(null=True, blank=True) # date из второй БД
+    last_data_time = models.TimeField(null=True, blank=True) # time из второй БД
+    status = models.CharField(
+        max_length=3,
+        choices=PanelStatus.choices,
+        default=PanelStatus.ON, # Убедитесь, что значение по умолчанию совпадает
+        null=True, blank=True # Возможно, данные могут быть None
+    )
+    battery_charge = models.FloatField(null=True, blank=True) # Возможно, данные могут быть None
+
+    last_updated = models.DateTimeField(auto_now=True) # Время последнего обновления этой записи
+
+    class Meta:
+        # Определяем составной уникальный ключ для id_panel и id_hub
+        unique_together = (('id_panel', 'id_hub'),)
+        verbose_name = 'Latest Panel Data'
+        verbose_name_plural = 'Latest Panel Data'
+        # Убедитесь, что модель создается в основной БД (по умолчанию)
+        # managed = True # Это значение по умолчанию, явно указывать не нужно, если нет причин обратного
+
+    def __str__(self):
+        return f"Latest data for Panel {self.id_panel}@{self.id_hub}"

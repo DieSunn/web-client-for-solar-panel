@@ -3,17 +3,17 @@ import time
 from django.views.generic import View
 from django.shortcuts import get_object_or_404, render
 from django.http import JsonResponse
-from .models import Solar_Panel, Characteristics, Hub, Panel, PanelData
+from .models import Solar_Panel, Characteristics, Hub, Panel, PanelData, LatestPanelData, PanelStatus, PanelType
 from django.views.decorators.csrf import csrf_exempt
 from django.core import serializers
+from django.db import connections, ProgrammingError, OperationalError, transaction
+from django.utils.dateparse import parse_date, parse_time # Для парсинга строк даты/времени
 import requests
 import json
 from django.template.defaultfilters import date
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-import plotly.express as px
-import pandas as pd
 from django.utils.decorators import method_decorator
 import os
 from rest_framework import viewsets, status
@@ -23,8 +23,14 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .serializers import SolarPanelSerializer, CharacteristicsSerializer
 from datetime import timedelta
 from django.utils import timezone
+import logging # Recommended for logging errors
 
-EXTERNAL_API_URL = "http://your-external-api-server.com/api/command"  # Замени на URL API
+
+logger = logging.getLogger(__name__)
+
+
+#Тут заменить на api сервера
+EXTERNAL_API_URL = "http://127.0.0.1:5000/listen"  
 
 class DashboardView(View):
     def get(self, request, *args, **kwargs):
@@ -585,3 +591,121 @@ class ApiCommandView(View):
             return JsonResponse({"status": "error", "message": f"Error communicating with external API: {e}"}, status=500)
         except Exception as e:
             return JsonResponse({"status": "error", "message": f"An unexpected error occurred: {e}"}, status=500)
+        
+def sync_latest_panel_data_to_main_models(request):
+    db_alias = 'solar_panel_db'
+    fetched_data = []
+    hubs_created_count = 0
+    panels_created_count = 0
+    panel_data_created_count = 0
+
+    try:
+        with connections[db_alias].cursor() as cursor:
+            sql_query = """
+                SELECT DISTINCT ON (id_panel, id_hub)
+                    id_panel, id_hub, generated_power, consumed_power,
+                    vertical_position, horizontal_position, date, time,
+                    status, battery_charge
+                FROM panel_data
+                ORDER BY id_panel, id_hub, date DESC, time DESC;
+            """
+            cursor.execute(sql_query)
+            columns = [col[0] for col in cursor.description]
+            rows = cursor.fetchall()
+
+            for row in rows:
+                fetched_data.append(dict(zip(columns, row)))
+
+    except KeyError:
+        error_msg = f"Database configuration error: Alias '{db_alias}' not found in settings.DATABASES."
+        logger.error(error_msg)
+        return JsonResponse({'error': error_msg, 'status': 'error'}, status=500)
+    except (ProgrammingError, OperationalError) as db_err:
+        error_msg = f"Database error accessing '{db_alias}': {db_err}"
+        logger.exception(error_msg)
+        return JsonResponse({'error': f'A database error occurred while fetching data from {db_alias}.', 'status': 'error'}, status=500)
+    except Exception as e:
+        error_msg = f"An unexpected error occurred during data fetching: {e}"
+        logger.exception(error_msg)
+        return JsonResponse({'error': 'An unexpected server error occurred during fetching.', 'status': 'error'}, status=500)
+
+    if not fetched_data:
+        logger.info("No new data fetched from secondary database.")
+        return JsonResponse({'message': 'No data fetched from secondary database.', 'status': 'no_data'}, status=200)
+
+    try:
+        with transaction.atomic():
+            for data_item in fetched_data:
+                hub_id = data_item['id_hub']
+                panel_id = data_item['id_panel']
+
+                hub_defaults = {
+                    'ip_address': 'unknown', 
+                    'port': 0                
+                }
+                hub, hub_created = Hub.objects.get_or_create(
+                    id_hub=hub_id,
+                    defaults=hub_defaults
+                )
+                if hub_created:
+                    hubs_created_count += 1
+                    logger.info(f"Created Hub: {hub_id}")
+
+                panel_defaults = {
+                    'type': PanelType.STATIC, 
+                    'coordinates': None       
+                }
+                panel, panel_created = Panel.objects.get_or_create(
+                    id_panel=panel_id,
+                    hub=hub, 
+                    defaults=panel_defaults
+                )
+                if panel_created:
+                    panels_created_count += 1
+                    logger.info(f"Created Panel: {panel_id} for Hub: {hub_id}")
+
+                record_date = parse_date(str(data_item['date'])) if data_item['date'] is not None else None
+                record_time = parse_time(str(data_item['time'])) if data_item['time'] is not None else None
+
+                status_value = data_item.get('status')
+                valid_status = status_value if status_value in PanelStatus.values else None
+                if status_value is not None and valid_status is None:
+                     logger.warning(f"Invalid status value '{status_value}' received for {panel_id}@{hub_id}. Setting status to NULL.")
+
+
+                panel_data_record = PanelData.objects.create(
+                    id_panel=panel_id,
+                    id_hub=hub_id,
+                    generated_power=data_item.get('generated_power'),
+                    consumed_power=data_item.get('consumed_power'),
+                    vertical_position=data_item.get('vertical_position'),
+                    horizontal_position=data_item.get('horizontal_position'),
+                    date=record_date,
+                    time=record_time,
+                    status=valid_status, 
+                    battery_charge=data_item.get('battery_charge')
+                )
+                panel_data_created_count += 1
+                logger.debug(f"Created PanelData record {panel_data_record.id} for {panel_id}@{hub_id}")
+
+        success_msg = (f'Data synchronization complete. '
+                       f'Hubs created: {hubs_created_count}, '
+                       f'Panels created: {panels_created_count}, '
+                       f'PanelData records created: {panel_data_created_count}.')
+        logger.info(success_msg)
+        return JsonResponse({
+            'message': success_msg,
+            'status': 'success',
+            'hubs_created': hubs_created_count,
+            'panels_created': panels_created_count,
+            'panel_data_created': panel_data_created_count
+        }, status=200)
+
+    except (ProgrammingError, OperationalError) as db_err:
+        error_msg = f"Database error saving data to default database: {db_err}"
+        logger.exception(error_msg)
+        return JsonResponse({'error': 'A database error occurred while saving data.', 'status': 'error'}, status=500)
+    except Exception as e:
+        error_msg = f"An unexpected error occurred during data saving: {e}"
+        logger.exception(error_msg)
+        return JsonResponse({'error': 'An unexpected server error occurred during saving.', 'status': 'error'}, status=500)
