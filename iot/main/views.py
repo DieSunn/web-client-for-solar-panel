@@ -24,13 +24,14 @@ from .serializers import SolarPanelSerializer, CharacteristicsSerializer
 from datetime import timedelta
 from django.utils import timezone
 import logging # Recommended for logging errors
+from .services import sync_all_panel_data, SyncResult
 
 
 logger = logging.getLogger(__name__)
 
 
 #Тут заменить на api сервера
-EXTERNAL_API_URL = "http://127.0.0.1:5000/listen"  
+EXTERNAL_API_URL = "http://85.193.80.133:8080"  
 
 class DashboardView(View):
     def get(self, request, *args, **kwargs):
@@ -543,6 +544,93 @@ class PanelDetailView(View):
         return render(request, 'panel_detail.html', context)
 
 
+# @method_decorator(csrf_exempt, name='dispatch')
+# class ApiCommandView(View):
+#     def post(self, request, *args, **kwargs):
+#         try:
+#             data = json.loads(request.body)
+#             command = data.get("command")
+#             hub_id = data.get("hubId")
+#             panel_id = data.get("panelId")
+#             vertical_position = data.get("verticalPosition")
+#             horizontal_position = data.get("horizontalPosition")
+
+#             headers = {
+#                 "Content-Type": "application/json",
+#                 "Authorization": "key1-admin",
+#             }
+
+#             # проверка обязательных полей
+#             if not command or not hub_id:
+#                 return JsonResponse({"status": "error", "message": "Command and HubId are required"}, status=400)
+
+#             if command in ["SEND_DATA", "ROTATE",] and panel_id:
+#                  api_payload["PanelId"] = panel_id
+
+#             if command == "ROTATE":
+#                 if vertical_position is not None and horizontal_position is not None:
+#                     api_payload["VerticalPosition"] = vertical_position
+#                     api_payload["HorizontalPosition"] = horizontal_position
+#                 else:
+#                     return JsonResponse({"status": "error", "message": "VerticalPosition and HorizontalPosition are required for ROTATE command"}, status=400)
+
+#             # собираем нагрузку
+#             api_payload = {"Command": command, "HubId": hub_id}
+#             # ... добавляем PanelId, позиции и т.д.
+
+#             # шлём запрос
+#             response = requests.post(EXTERNAL_API_URL, json=api_payload, headers=headers)
+
+#             if response.status_code != 200:
+#                 pass
+
+#             # если запрос успешен и это команда проверки статуса
+#             if command in ["CHECK_STATUS", "STATUS"]:
+#                 # разбираем body
+#                 try:
+#                     api_response_data = response.json()
+#                 except json.JSONDecodeError:
+#                     api_response_data = response.text
+
+#                 # пытаемся синхронизировать до тех пор, пока есть новые данные или не вышли по таймауту
+#                 max_retries = 5
+#                 delay_seconds = 2
+#                 for attempt in range(max_retries):
+#                     sync_result: SyncResult = sync_all_panel_data()
+#                     if sync_result.status == 'success':
+#                         return JsonResponse({
+#                             "status": "success",
+#                             "api_response": api_response_data,
+#                             "sync": {
+#                                 "hubs_created": sync_result.hubs,
+#                                 "panels_created": sync_result.panels,
+#                                 "records_created": sync_result.records,
+#                                 "message": sync_result.message
+#                             }
+#                         })
+#                     elif sync_result.status == 'error':
+#                         return JsonResponse({
+#                             "status": "error",
+#                             "message": "Error during sync",
+#                             "details": sync_result.message
+#                         }, status=500)
+#                     # если 'no_data', ждём и повторяем
+#                     time.sleep(delay_seconds)
+
+#                 # таймаут: данные не пришли
+#                 return JsonResponse({
+#                     "status": "error",
+#                     "message": f"Timeout waiting for database update after {max_retries * delay_seconds} seconds"
+#                 }, status=504)
+
+#             # для всех прочих команд просто возвращаем ответ API
+#             if response.status_code == 200:
+#                 try:
+#                     return JsonResponse({"status": "success", "api_response": response.json()})
+#                 except json.JSONDecodeError:
+#                     return JsonResponse({"status": "success", "message": "Command sent, but non-JSON response", "api_response": response.text})
+#         except Exception as e:
+#             return JsonResponse({"status": "error", "message": str(e)}, status=500)
 @method_decorator(csrf_exempt, name='dispatch')
 class ApiCommandView(View):
     def post(self, request, *args, **kwargs):
@@ -554,13 +642,18 @@ class ApiCommandView(View):
             vertical_position = data.get("verticalPosition")
             horizontal_position = data.get("horizontalPosition")
 
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": "key1-admin",
+            }
+
             if not command or not hub_id:
-                 return JsonResponse({"status": "error", "message": "Command and HubId are required"}, status=400)
+                return JsonResponse({"status": "error", "message": "Command and HubId are required"}, status=400)
 
             api_payload = {"Command": command, "HubId": hub_id}
 
             if command in ["SEND_DATA", "ROTATE", "STATUS", "CHECK_STATUS"] and panel_id:
-                 api_payload["PanelId"] = panel_id
+                api_payload["PanelId"] = panel_id
 
             if command == "ROTATE":
                 if vertical_position is not None and horizontal_position is not None:
@@ -569,7 +662,7 @@ class ApiCommandView(View):
                 else:
                     return JsonResponse({"status": "error", "message": "VerticalPosition and HorizontalPosition are required for ROTATE command"}, status=400)
 
-            response = requests.post(EXTERNAL_API_URL, json=api_payload)
+            response = requests.post(EXTERNAL_API_URL, json=api_payload, headers=headers)
 
             if response.status_code == 200:
                 try:
@@ -591,7 +684,7 @@ class ApiCommandView(View):
             return JsonResponse({"status": "error", "message": f"Error communicating with external API: {e}"}, status=500)
         except Exception as e:
             return JsonResponse({"status": "error", "message": f"An unexpected error occurred: {e}"}, status=500)
-        
+
 def sync_latest_panel_data_to_main_models(request):
     db_alias = 'solar_panel_db'
     fetched_data = []

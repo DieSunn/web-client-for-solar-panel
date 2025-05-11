@@ -20,17 +20,24 @@
         border-radius: 8px;
     }
 
-    .hub-section h3 {
-        margin-top: 0;
-        color: #007bff;
-        border-bottom: 1px solid #eee;
-        padding-bottom: 10px;
-        margin-bottom: 15px;
+    .hub-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .hub-buttons {
+        margin-top: 10px;
+    }
+
+    .hub-buttons button {
+        margin-right: 10px;
     }
 
     .panel-list {
         list-style: none;
         padding: 0;
+        margin-top: 15px;
     }
 
     .panel-item {
@@ -38,9 +45,9 @@
     }
 
     .panel-link {
-        display: block; 
+        display: block;
         padding: 12px 15px;
-        background-color: #e9ecef; 
+        background-color: #e9ecef;
         color: #333;
         text-decoration: none;
         border: 1px solid #cccccc;
@@ -54,17 +61,50 @@
         border-color: #bbbbbb;
     }
 
+    /* Notification messages */
+    #apiResponseMessages {
+        margin-top: 20px;
+    }
+    .message {
+        padding: 10px 15px;
+        border-radius: 5px;
+        margin-bottom: 10px;
+        font-weight: bold;
+    }
+    .message.success {
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+    }
+    .message.error {
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
 </style>
 
 <div class="management-container">
-    <h2>Выберите солнечную панель для управления</h2>
+    <h2>Управление хабами и панелями</h2>
 
     {% for hub in hubs %}
-        <div class="hub-section">
-            <h3>Хаб: {{ hub.id_hub }}</h3>
+        <div class="hub-section" id="hub-{{ hub.id_hub }}">
+            <div class="hub-header">
+                <h3>Хаб: {{ hub.id_hub }}</h3>
+                <div class="hub-buttons">
+                    <button class="api-command-btn" data-command="STATUS" data-hub-id="{{ hub.id_hub }}">
+                        Проверить статус хаба
+                    </button>
+                    <button class="api-command-btn" data-command="CHECK_STATUS" data-hub-id="{{ hub.id_hub }}">
+                        Проверить статусы всех панелей
+                    </button>
+                    <button class="toggle-panels-btn" data-hub-id="{{ hub.id_hub }}">
+                        Показать панели
+                    </button>
+                </div>
+            </div>
 
-            {% if hub.panel_set.all %} {# Check if the hub has any panels #}
-                <ul class="panel-list">
+            {% if hub.panel_set.all %}
+                <ul class="panel-list" id="panel-list-{{ hub.id_hub }}" style="display: none;">
                     {% for panel in hub.panel_set.all %}
                         <li class="panel-item">
                             <a href="{% url 'panel_detail' hub_id=hub.id_hub panel_id=panel.id_panel %}" class="panel-link">
@@ -81,6 +121,98 @@
         <p>Нет доступных хабов.</p>
     {% endfor %}
 
+    <div id="apiResponseMessages"></div>
 </div>
 
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+
+        // Toggle panel list visibility
+        document.querySelectorAll('.toggle-panels-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const hubId = this.dataset.hubId;
+                const list = document.getElementById(`panel-list-${hubId}`);
+                if (list) {
+                    const isHidden = list.style.display === 'none';
+                    list.style.display = isHidden ? 'block' : 'none';
+                    this.textContent = isHidden ? 'Скрыть панели' : 'Показать панели';
+                }
+            });
+        });
+
+        // API command handlers
+        document.querySelectorAll('.api-command-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const command = this.dataset.command;
+                const hubId = this.dataset.hubId;
+                const panelId = this.dataset.panelId;
+                // приводим имена полей к тому, что ждёт Django‑view
+                let payload = { 
+                    command: command, 
+                    hubId: hubId 
+                };
+                if (panelId) {
+                    payload.panel_id = panelId;
+                }
+                console.log(payload);
+                sendCommandToApi(payload);
+            });
+        });
+
+        function displayMessage(text, type, details) {
+            const container = document.getElementById('apiResponseMessages');
+            const msg = document.createElement('div');
+            msg.className = `message ${type}`;
+            msg.textContent = text + (details ? ` (${JSON.stringify(details)})` : '');
+            container.prepend(msg);
+            setTimeout(() => msg.remove(), 5000);
+        }
+
+        function sendCommandToApi(payload) {
+            const djangoApiUrl = "{% url 'api_send_command' %}";
+            api_key = 'key1-admin';
+            fetch(djangoApiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    "Authorization": "key1-admin",
+                },
+                body: JSON.stringify(payload),
+            })
+            .then(response => {
+                if (!response.ok) {
+                    displayMessage(`Сервер вернул ошибку ${response.status}. Попробуйте позже.`, 'error');
+                    throw new Error(`HTTP status ${response.status}`);
+                }
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.includes("application/json")) {
+                    return response.json().then(data => {
+                        displayMessage(`Команда "${payload.command}" успешно отправлена.`, 'success', data.api_response);
+                    });
+                } else {
+                    displayMessage(`Не удалось получить JSON от сервера.`, 'error');
+                }
+            })
+            .catch(error => {
+                console.error(error);
+                displayMessage(`Ошибка сети или сервера при отправке команды: ${error.message}`, 'error');
+            });
+        }
+    });
+</script>
 {% endblock %}

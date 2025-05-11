@@ -1,5 +1,6 @@
 from django.db import models
-
+from django.db.models import UniqueConstraint
+from django.contrib.auth.models import AbstractUser
 #Данные вставляются в поля бд напрямую (ORM)
 # Модель для представления солнечных панелей
 class Solar_Panel(models.Model):
@@ -122,9 +123,12 @@ class PanelData(models.Model):
 
     class Meta:
         db_table = 'panel_data'
-        # composite foreign key not natively supported; enforce via migration or DB constraint
-        verbose_name = 'Panel Data'
-        verbose_name_plural = 'Panel Data Records'
+        constraints = [
+            UniqueConstraint(
+                fields=['id_panel', 'id_hub', 'date', 'time'],
+                name='uniq_panel_hub_datetime'
+            )
+        ]
 
     def __str__(self):
         return f"Data {self.id} for {self.id_panel}@{self.id_hub} on {self.date} {self.time}"
