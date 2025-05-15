@@ -106,7 +106,7 @@ class PanelStatus(models.TextChoices):
 class PanelData(models.Model):
     id = models.AutoField(primary_key=True)
     id_panel = models.CharField(max_length=50)
-    id_hub = models.CharField(max_length=50)
+    id_hub = models.CharField(max_length=50)    
     generated_power = models.FloatField()
     consumed_power = models.FloatField()
     vertical_position = models.FloatField()

@@ -1,0 +1,22 @@
+{% extends 'base_login.html' %}
+
+{% block title %}Гостевая страница{% endblock %}
+
+{% block content %}
+    <!-- Шапка с кратким описанием -->
+    <section id="hero">
+        <h1>Добро пожаловать в наш проект</h1>
+        <p>Здесь будет краткое описание проекта, его целей и преимуществ.</p>
+        <!-- Кнопка входа для гостя -->
+        <a href="{% url 'login' %}" class="btn btn-primary">Войти</a>
+    </section>
+
+    <!-- Карта с координатами солнечных панелей -->
+    <section id="map-section">
+        <h2>Расположение солнечных панелей</h2>
+        <!-- Плейсхолдер для карты: сюда будет встроен JS-код карты (Leaflet, Google Maps и т.п.) -->
+        <div id="map" style="width:100%; height:400px; background-color:#eee; display:flex; align-items:center; justify-content:center;">
+            <span>Здесь будет карта</span>
+        </div>
+    </section>
+{% endblock %}

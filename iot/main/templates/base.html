@@ -1,4 +1,9 @@
 {% load static %}
+{% block head %}
+<link rel="stylesheet" href="{% static 'css/login_form.css' %}">
+<link rel="stylesheet" href="{% static 'css/create_hub_form.css' %}">
+{% endblock %}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -53,12 +58,14 @@
                             <span class="text nav-text">Таблицы</span>
                         </a>
                     </li>
+                    {% if user.is_staff %}
                     <li class="nav-link">
-                        <a href="{% url 'socket' %}">
+                        <a href="{% url 'create_hub' %}">
                             <i class='bx bx-planet icon'></i>
                             <span class="text nav-text">Управление</span>
                         </a>
                     </li>
+                    {%endif%}
                     <li class="nav-link">
                         <a href="{% url 'manage_panels' %}">
                             <i class=''>ඞ</i>
@@ -69,6 +76,12 @@
             </div>
             <!-- Переключатель ночного режима -->
             <div class="bottom-content">
+                  <li class="nav-link">
+                    <a href="{% url 'logout' %}">
+                    <i class='bx bx-log-out icon'></i>
+                    <span class="text nav-text">Выход</span>
+                    </a>
+                </li>
                 <li class="mode">
                     <div class="moon-sun">
                         <i class='bx bx-moon icon moon'></i>

@@ -1,7 +1,7 @@
 from datetime import datetime
 import time
 from django.views.generic import View
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, render, redirect
 from django.http import JsonResponse
 from .models import Solar_Panel, Characteristics, Hub, Panel, PanelData, LatestPanelData, PanelStatus, PanelType
 from django.views.decorators.csrf import csrf_exempt
@@ -25,6 +25,12 @@ from datetime import timedelta
 from django.utils import timezone
 import logging # Recommended for logging errors
 from .services import sync_all_panel_data, SyncResult
+from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.mixins import LoginRequiredMixin
+from .forms import HubForm
+import uuid
+from django.db import connections, transaction
 
 
 logger = logging.getLogger(__name__)
@@ -33,7 +39,8 @@ logger = logging.getLogger(__name__)
 #Тут заменить на api сервера
 EXTERNAL_API_URL = "http://85.193.80.133:8080"  
 
-class DashboardView(View):
+
+class DashboardView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
         # Получаем все панели
         panels = Panel.objects.select_related('hub') \
@@ -802,3 +809,45 @@ def sync_latest_panel_data_to_main_models(request):
         error_msg = f"An unexpected error occurred during data saving: {e}"
         logger.exception(error_msg)
         return JsonResponse({'error': 'An unexpected server error occurred during saving.', 'status': 'error'}, status=500)
+    
+
+@method_decorator(staff_member_required, name='dispatch')
+class CreateHubView(View):
+    template_name = 'create_hub.html'
+    db_alias = 'solar_panel_db'
+
+    def get(self, request):
+        form = HubForm()
+        return render(request, self.template_name, {'form': form})
+
+    def post(self, request):
+        form = HubForm(request.POST)
+        if form.is_valid():
+            id_hub = form.cleaned_data['id_hub']
+            ip = form.cleaned_data['ip_address']
+            port = form.cleaned_data['port']
+            count = form.cleaned_data['panel_count']
+            prefix = form.cleaned_data['panel_prefix']
+            ptype = form.cleaned_data['panel_type']
+
+            conn = connections[self.db_alias]
+            with transaction.atomic(using=self.db_alias):
+                with conn.cursor() as cursor:
+                    # Вставляем hub
+                    cursor.execute(
+                        """
+                        INSERT INTO hub (id_hub, ip_address, port)
+                        VALUES (%s, %s, %s)
+                        """, [id_hub, ip, port]
+                    )
+                    # Вставляем панели с пользовательскими именами
+                    for i in range(1, count+1):
+                        panel_id = f"{prefix}_{i}"
+                        cursor.execute(
+                            """
+                            INSERT INTO id_panel (id_panel, type, id_hub)
+                            VALUES (%s, %s, %s)
+                            """, [panel_id, ptype, id_hub]
+                        )
+            return redirect('create_hub')
+        return render(request, self.template_name, {'form': form})

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}Мой проект{% endblock %}</title>
+    <!-- Здесь можно подключить стили, например Bootstrap или свои -->
+    <link rel="stylesheet" href="{% static 'css/main.css' %}" />
+</head>
+<body>
+    <!-- Навигация -->
+    <header>
+        <nav>
+            <ul>
+                <li><a href="{% url 'guest' %}">Главная</a></li>
+                {% if user.is_authenticated %}
+                    <li><a href="{% url 'profile' %}">Профиль</a></li>
+                    {% if user.is_superuser %}
+                        <li><a href="{% url 'admin:index' %}">Админка</a></li>
+                    {% endif %}
+                    <li><a href="{% url 'logout' %}">Выйти</a></li>
+                {% else %}
+                    <li><a href="{% url 'login' %}">Войти</a></li>
+                    <li><a href="{% url 'signup' %}">Регистрация</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Основной контент -->
+    <main>
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <!-- Подвал -->
+    <footer>
+        <p>© 2025 Мой проект. Все права защищены.</p>
+    </footer>
+</body>
+</html>
