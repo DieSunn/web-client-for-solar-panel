@@ -694,127 +694,105 @@ class ApiCommandView(View):
 
 def sync_latest_panel_data_to_main_models(request):
     db_alias = 'solar_panel_db'
-    fetched_data = []
-    hubs_created_count = 0
-    panels_created_count = 0
-    panel_data_created_count = 0
+    fetched_data = {}
+    hubs_created = panels_created = records_created = 0
 
+    # 1) Fetch latest data per (panel, hub)
     try:
         with connections[db_alias].cursor() as cursor:
-            sql_query = """
+            cursor.execute("""
                 SELECT DISTINCT ON (id_panel, id_hub)
                     id_panel, id_hub, generated_power, consumed_power,
                     vertical_position, horizontal_position, date, time,
                     status, battery_charge
                 FROM panel_data
                 ORDER BY id_panel, id_hub, date DESC, time DESC;
-            """
-            cursor.execute(sql_query)
-            columns = [col[0] for col in cursor.description]
-            rows = cursor.fetchall()
-
-            for row in rows:
-                fetched_data.append(dict(zip(columns, row)))
+            """)
+            cols = [c[0] for c in cursor.description]
+            for row in cursor.fetchall():
+                fetched_data[(row[0], row[1])] = dict(zip(cols, row))
 
     except KeyError:
-        error_msg = f"Database configuration error: Alias '{db_alias}' not found in settings.DATABASES."
-        logger.error(error_msg)
-        return JsonResponse({'error': error_msg, 'status': 'error'}, status=500)
-    except (ProgrammingError, OperationalError) as db_err:
-        error_msg = f"Database error accessing '{db_alias}': {db_err}"
-        logger.exception(error_msg)
-        return JsonResponse({'error': f'A database error occurred while fetching data from {db_alias}.', 'status': 'error'}, status=500)
-    except Exception as e:
-        error_msg = f"An unexpected error occurred during data fetching: {e}"
-        logger.exception(error_msg)
-        return JsonResponse({'error': 'An unexpected server error occurred during fetching.', 'status': 'error'}, status=500)
+        msg = f"Alias '{db_alias}' not in DATABASES"
+        logger.error(msg)
+        return JsonResponse({'status': 'error', 'error': msg}, status=500)
+    except (ProgrammingError, OperationalError) as e:
+        logger.exception("Error reading from secondary DB")
+        return JsonResponse({'status': 'error', 'error': 'Fetch error from secondary DB'}, status=500)
+    except Exception:
+        logger.exception("Unexpected error during fetch")
+        return JsonResponse({'status': 'error', 'error': 'Unexpected fetch error'}, status=500)
 
-    if not fetched_data:
-        logger.info("No new data fetched from secondary database.")
-        return JsonResponse({'message': 'No data fetched from secondary database.', 'status': 'no_data'}, status=200)
-
+    # 2) Sync into main DB
     try:
         with transaction.atomic():
-            for data_item in fetched_data:
-                hub_id = data_item['id_hub']
-                panel_id = data_item['id_panel']
-
-                hub_defaults = {
-                    'ip_address': 'unknown', 
-                    'port': 0                
-                }
-                hub, hub_created = Hub.objects.get_or_create(
+            # Ensure Hubs and Panels exist for all fetched keys
+            for (panel_id, hub_id) in fetched_data.keys():
+                hub, created = Hub.objects.get_or_create(
                     id_hub=hub_id,
-                    defaults=hub_defaults
+                    defaults={'ip_address': 'unknown', 'port': 0}
                 )
-                if hub_created:
-                    hubs_created_count += 1
-                    logger.info(f"Created Hub: {hub_id}")
+                if created:
+                    hubs_created += 1
+                    logger.info(f"Created Hub {hub_id}")
 
-                panel_defaults = {
-                    'type': PanelType.STATIC, 
-                    'coordinates': None       
-                }
-                panel, panel_created = Panel.objects.get_or_create(
+                panel, created = Panel.objects.get_or_create(
                     id_panel=panel_id,
-                    hub=hub, 
-                    defaults=panel_defaults
+                    hub=hub,
+                    defaults={'type': PanelType.STATIC, 'coordinates': None}
                 )
-                if panel_created:
-                    panels_created_count += 1
-                    logger.info(f"Created Panel: {panel_id} for Hub: {hub_id}")
+                if created:
+                    panels_created += 1
+                    logger.info(f"Created Panel {panel_id} for Hub {hub_id}")
 
-                record_date = parse_date(str(data_item['date'])) if data_item['date'] is not None else None
-                record_time = parse_time(str(data_item['time'])) if data_item['time'] is not None else None
-
-                status_value = data_item.get('status')
+            # Insert only where actual data exists
+            for (panel_id, hub_id), data in fetched_data.items():
+                record_date = parse_date(str(data['date'])) if data['date'] else None
+                record_time = parse_time(str(data['time'])) if data['time'] else None
+                status_value = data.get('status')
                 valid_status = status_value if status_value in PanelStatus.values else None
-                if status_value is not None and valid_status is None:
-                     logger.warning(f"Invalid status value '{status_value}' received for {panel_id}@{hub_id}. Setting status to NULL.")
+                if status_value and valid_status is None:
+                    logger.warning(f"Invalid status '{status_value}' for {panel_id}@{hub_id}")
 
+                defaults = {
+                    'generated_power': data.get('generated_power'),
+                    'consumed_power': data.get('consumed_power'),
+                    'vertical_position': data.get('vertical_position'),
+                    'horizontal_position': data.get('horizontal_position'),
+                    'status': valid_status,
+                    'battery_charge': data.get('battery_charge'),
+                }
 
-                panel_data_record = PanelData.objects.create(
+                panel_data, created = PanelData.objects.update_or_create(
                     id_panel=panel_id,
                     id_hub=hub_id,
-                    generated_power=data_item.get('generated_power'),
-                    consumed_power=data_item.get('consumed_power'),
-                    vertical_position=data_item.get('vertical_position'),
-                    horizontal_position=data_item.get('horizontal_position'),
                     date=record_date,
                     time=record_time,
-                    status=valid_status, 
-                    battery_charge=data_item.get('battery_charge')
+                    defaults=defaults
                 )
-                panel_data_created_count += 1
-                logger.debug(f"Created PanelData record {panel_data_record.id} for {panel_id}@{hub_id}")
+                if created:
+                    records_created += 1
 
-        success_msg = (f'Data synchronization complete. '
-                       f'Hubs created: {hubs_created_count}, '
-                       f'Panels created: {panels_created_count}, '
-                       f'PanelData records created: {panel_data_created_count}.')
-        logger.info(success_msg)
-        return JsonResponse({
-            'message': success_msg,
-            'status': 'success',
-            'hubs_created': hubs_created_count,
-            'panels_created': panels_created_count,
-            'panel_data_created': panel_data_created_count
-        }, status=200)
+        msg = (
+            f"Sync complete: hubs={hubs_created}, panels={panels_created}, "
+            f"data records={records_created}."
+        )
+        logger.info(msg)
+        return JsonResponse({'status': 'success', 'message': msg,
+                             'hubs_created': hubs_created,
+                             'panels_created': panels_created,
+                             'panel_data_created': records_created},
+                            status=200)
 
-    except (ProgrammingError, OperationalError) as db_err:
-        error_msg = f"Database error saving data to default database: {db_err}"
-        logger.exception(error_msg)
-        return JsonResponse({'error': 'A database error occurred while saving data.', 'status': 'error'}, status=500)
-    except Exception as e:
-        error_msg = f"An unexpected error occurred during data saving: {e}"
-        logger.exception(error_msg)
-        return JsonResponse({'error': 'An unexpected server error occurred during saving.', 'status': 'error'}, status=500)
-    
+    except Exception:
+        logger.exception("Unexpected error during save")
+        return JsonResponse({'status': 'error', 'error': 'Unexpected save error'}, status=500)
+
 
 @method_decorator(staff_member_required, name='dispatch')
 class CreateHubView(View):
     template_name = 'create_hub.html'
-    db_alias = 'solar_panel_db'
+    secondary_alias = 'solar_panel_db'
 
     def get(self, request):
         form = HubForm()
@@ -822,26 +800,30 @@ class CreateHubView(View):
 
     def post(self, request):
         form = HubForm(request.POST)
-        if form.is_valid():
-            id_hub = form.cleaned_data['id_hub']
-            ip = form.cleaned_data['ip_address']
-            port = form.cleaned_data['port']
-            count = form.cleaned_data['panel_count']
-            prefix = form.cleaned_data['panel_prefix']
-            ptype = form.cleaned_data['panel_type']
+        if not form.is_valid():
+            return render(request, self.template_name, {'form': form})
 
-            conn = connections[self.db_alias]
-            with transaction.atomic(using=self.db_alias):
+        id_hub = form.cleaned_data['id_hub']
+        ip = form.cleaned_data['ip_address']
+        port = form.cleaned_data['port']
+        count = form.cleaned_data['panel_count']
+        prefix = form.cleaned_data['panel_prefix']
+        ptype = form.cleaned_data['panel_type']
+
+        # Write to secondary DB
+        try:
+            with transaction.atomic(using=self.secondary_alias):
+                conn = connections[self.secondary_alias]
                 with conn.cursor() as cursor:
-                    # Вставляем hub
+                    # Insert hub
                     cursor.execute(
                         """
                         INSERT INTO hub (id_hub, ip_address, port)
                         VALUES (%s, %s, %s)
                         """, [id_hub, ip, port]
                     )
-                    # Вставляем панели с пользовательскими именами
-                    for i in range(1, count+1):
+                    # Insert panels
+                    for i in range(1, count + 1):
                         panel_id = f"{prefix}_{i}"
                         cursor.execute(
                             """
@@ -849,5 +831,37 @@ class CreateHubView(View):
                             VALUES (%s, %s, %s)
                             """, [panel_id, ptype, id_hub]
                         )
-            return redirect('create_hub')
-        return render(request, self.template_name, {'form': form})
+        except (ProgrammingError, OperationalError) as e:
+            logger.exception(f"Secondary DB write failed: {e}")
+            form.add_error(None, "Ошибка при сохранении во вторичную БД.")
+            return render(request, self.template_name, {'form': form})
+
+        # Secondary DB write succeeded – mirror to primary (web app DB)
+        try:
+            with transaction.atomic():
+                # Create Hub in primary DB
+                hub_obj, hub_created = Hub.objects.get_or_create(
+                    id_hub=id_hub,
+                    defaults={'ip_address': ip, 'port': port}
+                )
+                if hub_created:
+                    logger.info(f"Created Hub in primary DB: {id_hub}")
+
+                # Create Panel objects in primary DB
+                for i in range(1, count + 1):
+                    panel_id = f"{prefix}_{i}"
+                    panel_obj, panel_created = Panel.objects.get_or_create(
+                        id_panel=panel_id,
+                        hub=hub_obj,
+                        defaults={'type': ptype, 'coordinates': None}
+                    )
+                    if panel_created:
+                        logger.info(f"Created Panel {panel_id} in primary DB for Hub {id_hub}")
+
+        except Exception as e:
+            logger.exception(f"Primary DB mirror failed: {e}")
+            # Note: secondary already has data; decide rollback or notify
+            form.add_error(None, "Ошибка при зеркалировании в основную БД.")
+            return render(request, self.template_name, {'form': form})
+
+        return redirect('create_hub')

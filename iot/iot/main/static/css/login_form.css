@@ -1,169 +1,139 @@
-/* static/css/auth_forms.css */
+/* static/css/login_form.css (полностью переписанный) */
 
-/* Общий контейнер для форм аутентификации и других подобных форм */
-.auth-container,
-.form-container {
-    max-width: 450px; /* Максимальная ширина контейнера формы */
-    margin: 50px auto; /* Центрирование по горизонтали и отступ сверху/снизу */
+/* --- Светлая тема --- */
+
+.auth-container {
+    max-width: 400px;
+    margin: 60px auto;
     padding: 30px 35px;
-    background-color: var(--sidebar-color); /* Используем цвет фона боковой панели для "карточки" формы */
+    background-color: #ffffff; /* был --sidebar-color */
     border-radius: 8px;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1); /* Тень для эффекта объема */
-    color: var(--text-color);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+    color: #707070; /* был --text-color */
 }
 
-/* Адаптация контейнера для темного режима */
-body.dark .auth-container,
-body.dark .form-container {
-    background-color: var(--sidebar-color); /* Будет темным цветом боковой панели */
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
-}
-
-.auth-container h2,
-.form-container h2 {
+.auth-container h2 {
     text-align: center;
     margin-bottom: 30px;
     font-size: 26px;
-    color: var(--text-color);
+    color: #707070; /* был --text-color */
     font-weight: 600;
 }
 
-/* Стилизация параграфов, в которые Django оборачивает поля формы (при form.as_p) */
-.auth-container form p,
-.form-container form p {
+.auth-container form p {
     margin-bottom: 20px;
 }
 
-.auth-container form label,
-.form-container form label {
-    display: block; /* Метка над полем ввода */
+.auth-container form label {
+    display: block;
     margin-bottom: 8px;
     font-weight: 500;
     font-size: 14px;
-    color: var(--text-color);
+    color: #707070; /* был --text-color */
 }
 
 .auth-container form input[type="text"],
 .auth-container form input[type="email"],
-.auth-container form input[type="password"],
-.auth-container form input[type="url"],
-.auth-container form textarea, /* На случай если используете textarea */
-.form-container form input[type="text"],
-.form-container form input[type="email"],
-.form-container form input[type="password"],
-.form-container form input[type="url"],
-.form-container form textarea {
+.auth-container form input[type="password"] {
     width: 100%;
     padding: 12px 15px;
-    border: 1px solid var(--toggle-color); /* Граница инпута, --toggle-color (#ddd в светлой, #fff в темной) */
+    border: 1px solid #dddddd; /* был --toggle-color */
     border-radius: 6px;
     box-sizing: border-box;
     font-size: 16px;
-    background-color: var(--body-color); /* Фон инпута, как фон страницы */
-    color: var(--text-color);
+    background-color: #eae8f6; /* был --body-color */
+    color: #707070; /* был --text-color */
     transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-}
-
-/* Адаптация полей ввода для темного режима */
-body.dark .auth-container form input[type="text"],
-body.dark .auth-container form input[type="email"],
-body.dark .auth-container form input[type="password"],
-body.dark .auth-container form input[type="url"],
-body.dark .auth-container form textarea,
-body.dark .form-container form input[type="text"],
-body.dark .form-container form input[type="email"],
-body.dark .form-container form input[type="password"],
-body.dark .form-container form input[type="url"],
-body.dark .form-container form textarea {
-    background-color: #2c3034; /* Немного отличающийся фон для инпутов в темном режиме */
-    border-color: #4b545c; /* Более темная граница для инпутов в темном режиме */
 }
 
 .auth-container form input[type="text"]:focus,
 .auth-container form input[type="email"]:focus,
-.auth-container form input[type="password"]:focus,
-.auth-container form input[type="url"]:focus,
-.auth-container form textarea:focus,
-.form-container form input[type="text"]:focus,
-.form-container form input[type="email"]:focus,
-.form-container form input[type="password"]:focus,
-.form-container form input[type="url"]:focus,
-.form-container form textarea:focus {
-    border-color: var(--primary-color); /* Цвет границы при фокусе */
+.auth-container form input[type="password"]:focus {
+    border-color: #695cfe; /* был --primary-color */
     outline: none;
-    /* Тень при фокусе, используя основной цвет темы. RGBA от --primary-color (#695cfe) */
     box-shadow: 0 0 0 3px rgba(105, 92, 254, 0.15);
 }
 
-.auth-container button[type="submit"],
-.form-container button[type="submit"] {
+.auth-container button[type="submit"] {
     width: 100%;
     padding: 12px 15px;
-    background-color: var(--primary-color); /* Основной цвет темы для кнопки */
-    color: #ffffff; /* Белый текст на кнопке */
+    background-color: #695cfe; /* был --primary-color */
+    color: #ffffff;
     border: none;
     border-radius: 6px;
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
     transition: background-color 0.2s ease-in-out;
-    margin-top: 10px; /* Небольшой отступ сверху */
+    margin-top: 10px;
 }
 
-.auth-container button[type="submit"]:hover,
-.form-container button[type="submit"]:hover {
-    /* Затемненный основной цвет темы при наведении.
-       Если var(--primary-color) это #695cfe, то #5848d3 будет темнее.
-       Вы можете использовать filter: brightness(90%); если не хотите жестко задавать цвет.
-    */
-    background-color: #5848d3;
+.auth-container button[type="submit"]:hover {
+    background-color: #5848d3; /* Затемненный #695cfe */
 }
 
-/* Стилизация кнопки в темном режиме */
-body.dark .auth-container button[type="submit"],
-body.dark .form-container button[type="submit"] {
-    /* В темном режиме var(--primary-color) = #3a3b3c, что очень темно для кнопки.
-       Поэтому переопределим цвет кнопки для лучшей видимости в темном режиме,
-       используя, например, светлый оттенок или тот же цвет, что и в светлой теме, если он контрастен.
-    */
-    background-color: #695cfe; /* Яркий цвет для кнопки в темном режиме */
-    color: #ffffff;
-}
-
-body.dark .auth-container button[type="submit"]:hover,
-body.dark .form-container button[type="submit"]:hover {
-    background-color: #5848d3; /* Затемненный вариант яркого цвета */
-}
-
-
-/* Стилизация списка ошибок */
-.auth-container ul.errors,
-.form-container ul.errors {
-    list-style-type: none; /* Убираем маркеры списка */
+.auth-container ul.errors {
+    list-style-type: none;
     padding: 15px;
     margin-top: 25px;
-    margin-bottom: 0; /* Убираем нижний отступ у списка ошибок */
-    background-color: #fdecea; /* Очень светлый красный фон */
-    border: 1px solid #f5c6cb; /* Светло-красная граница */
+    margin-bottom: 0;
+    background-color: #fdecea;
+    border: 1px solid #f5c6cb;
     border-radius: 6px;
-    color: #721c24; /* Темно-красный текст */
+    color: #721c24;
 }
 
-.auth-container ul.errors li,
-.form-container ul.errors li {
+.auth-container ul.errors li {
     padding: 5px 0;
     font-size: 14px;
 }
 
-.auth-container ul.errors li:last-child,
-.form-container ul.errors li:last-child {
+.auth-container ul.errors li:last-child {
     margin-bottom: 0;
 }
 
-/* Список ошибок в темном режиме */
-body.dark .auth-container ul.errors,
-body.dark .form-container ul.errors {
-    background-color: #4a2527; /* Темный красноватый фон */
-    border-color: #8c4a4a; /* Темная красная граница */
-    color: #f5c6cb; /* Светлый текст ошибок */
+/* --- Темная тема (применяется, если на body есть класс .dark) --- */
+
+body.dark .auth-container {
+    background-color: #242526; /* был --sidebar-color (dark) */
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+    color: #cccccc; /* был --text-color (dark) */
+}
+
+body.dark .auth-container h2 {
+    color: #cccccc; /* был --text-color (dark) */
+}
+
+body.dark .auth-container form label {
+    color: #cccccc; /* был --text-color (dark) */
+}
+
+body.dark .auth-container form input[type="text"],
+body.dark .auth-container form input[type="email"],
+body.dark .auth-container form input[type="password"] {
+    border: 1px solid #4b545c; /* мой вариант для лучшего контраста, раньше был var(--toggle-color) -> #fff */
+    background-color: #2c3034; /* мой вариант для лучшего контраста */
+    color: #cccccc; /* был --text-color (dark) */
+}
+
+body.dark .auth-container form input[type="text"]:focus,
+body.dark .auth-container form input[type="email"]:focus,
+body.dark .auth-container form input[type="password"]:focus {
+    border-color: #695cfe; /* Яркий акцент для фокуса, вместо темного --primary-color (dark) */
+    box-shadow: 0 0 0 3px rgba(105, 92, 254, 0.25); /* Тень для темного режима */
+}
+
+body.dark .auth-container button[type="submit"] {
+    background-color: #695cfe; /* Яркий цвет кнопки, как в светлой теме, вместо темного --primary-color (dark) */
+    color: #ffffff;
+}
+
+body.dark .auth-container button[type="submit"]:hover {
+    background-color: #5848d3;
+}
+
+body.dark .auth-container ul.errors {
+    background-color: #4a2527;
+    border-color: #8c4a4a;
+    color: #f5c6cb;
 }

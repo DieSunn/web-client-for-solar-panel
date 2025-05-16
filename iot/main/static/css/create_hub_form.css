@@ -1,76 +1,68 @@
-/* static/css/login_form.css */
+    /* static/css/create_hub_form.css (полностью переписанный) */
 
-/* Контейнер для формы входа */
-.auth-container {
-    max-width: 400px; /* Немного уменьшим для стандартной формы входа */
-    margin: 60px auto;
+/* --- Светлая тема --- */
+
+.form-container {
+    max-width: 500px;
+    margin: 50px auto;
     padding: 30px 35px;
-    background-color: var(--sidebar-color);
+    background-color: #ffffff; /* был --sidebar-color */
     border-radius: 8px;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
-    color: var(--text-color);
+    color: #707070; /* был --text-color */
 }
 
-/* Адаптация контейнера для темного режима */
-body.dark .auth-container {
-    background-color: var(--sidebar-color);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
-}
-
-.auth-container h2 {
+.form-container h2 {
     text-align: center;
     margin-bottom: 30px;
     font-size: 26px;
-    color: var(--text-color);
+    color: #707070; /* был --text-color */
     font-weight: 600;
 }
 
-.auth-container form p {
+.form-container form p {
     margin-bottom: 20px;
 }
 
-.auth-container form label {
+.form-container form label {
     display: block;
     margin-bottom: 8px;
     font-weight: 500;
     font-size: 14px;
-    color: var(--text-color);
+    color: #707070; /* был --text-color */
 }
 
-.auth-container form input[type="text"],
-.auth-container form input[type="email"],
-.auth-container form input[type="password"] {
+.form-container form input[type="text"],
+.form-container form input[type="url"],
+.form-container form textarea {
     width: 100%;
     padding: 12px 15px;
-    border: 1px solid var(--toggle-color);
+    border: 1px solid #dddddd; /* был --toggle-color */
     border-radius: 6px;
     box-sizing: border-box;
     font-size: 16px;
-    background-color: var(--body-color);
-    color: var(--text-color);
+    background-color: #eae8f6; /* был --body-color */
+    color: #707070; /* был --text-color */
     transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 }
 
-/* Адаптация полей ввода для темного режима */
-body.dark .auth-container form input[type="text"],
-body.dark .auth-container form input[type="email"],
-body.dark .auth-container form input[type="password"] {
-    background-color: #2c3034;
-    border-color: #4b545c;
+.form-container form textarea {
+    min-height: 100px;
+    resize: vertical;
 }
 
-.auth-container form input[type="text"]:focus,
-.auth-container form input[type="email"]:focus,
-.auth-container form input[type="password"]:focus {
-    border-color: var(--primary-color);
+.form-container form input[type="text"]:focus,
+.form-container form input[type="url"]:focus,
+.form-container form textarea:focus {
+    border-color: #695cfe; /* был --primary-color */
     outline: none;
     box-shadow: 0 0 0 3px rgba(105, 92, 254, 0.15);
 }
 
-.auth-container button[type="submit"] {
+.form-container button[type="submit"] {
     width: 100%;
     padding: 12px 15px;
-    background-color: var(--primary-color);
+    background-color: #695cfe; /* был --primary-color */
     color: #ffffff;
     border: none;
     border-radius: 6px;
@@ -81,22 +73,11 @@ body.dark .auth-container form input[type="password"] {
     margin-top: 10px;
 }
 
-.auth-container button[type="submit"]:hover {
-    background-color: #5848d3; /* Темнее --primary-color (#695cfe) */
+.form-container button[type="submit"]:hover {
+    background-color: #5848d3; /* Затемненный #695cfe */
 }
 
-/* Стилизация кнопки в темном режиме */
-body.dark .auth-container button[type="submit"] {
-    background-color: #695cfe; /* Яркий цвет для кнопки в темном режиме */
-    color: #ffffff;
-}
-
-body.dark .auth-container button[type="submit"]:hover {
-    background-color: #5848d3;
-}
-
-/* Стилизация списка ошибок */
-.auth-container ul.errors {
+.form-container ul.errors {
     list-style-type: none;
     padding: 15px;
     margin-top: 25px;
@@ -107,17 +88,56 @@ body.dark .auth-container button[type="submit"]:hover {
     color: #721c24;
 }
 
-.auth-container ul.errors li {
+.form-container ul.errors li {
     padding: 5px 0;
     font-size: 14px;
 }
 
-.auth-container ul.errors li:last-child {
+.form-container ul.errors li:last-child {
     margin-bottom: 0;
 }
 
-/* Список ошибок в темном режиме */
-body.dark .auth-container ul.errors {
+/* --- Темная тема (применяется, если на body есть класс .dark) --- */
+
+body.dark .form-container {
+    background-color: #242526; /* был --sidebar-color (dark) */
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+    color: #cccccc; /* был --text-color (dark) */
+}
+
+body.dark .form-container h2 {
+    color: #cccccc; /* был --text-color (dark) */
+}
+
+body.dark .form-container form label {
+    color: #cccccc; /* был --text-color (dark) */
+}
+
+body.dark .form-container form input[type="text"],
+body.dark .form-container form input[type="url"],
+body.dark .form-container form textarea {
+    border: 1px solid #4b545c; /* мой вариант для лучшего контраста */
+    background-color: #2c3034; /* мой вариант для лучшего контраста */
+    color: #cccccc; /* был --text-color (dark) */
+}
+
+body.dark .form-container form input[type="text"]:focus,
+body.dark .form-container form input[type="url"]:focus,
+body.dark .form-container form textarea:focus {
+    border-color: #695cfe; /* Яркий акцент для фокуса */
+    box-shadow: 0 0 0 3px rgba(105, 92, 254, 0.25);
+}
+
+body.dark .form-container button[type="submit"] {
+    background-color: #695cfe; /* Яркий цвет кнопки */
+    color: #ffffff;
+}
+
+body.dark .form-container button[type="submit"]:hover {
+    background-color: #5848d3;
+}
+
+body.dark .form-container ul.errors {
     background-color: #4a2527;
     border-color: #8c4a4a;
     color: #f5c6cb;
