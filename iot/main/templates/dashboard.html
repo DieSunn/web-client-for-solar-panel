@@ -870,7 +870,7 @@ $(function() {
   // --- Инициализация карты Leaflet в модальном окне ---
   function initializeModalMap() {
     if (!modalMapInstance) { // Инициализируем только один раз
-      modalMapInstance = L.map('modalMap').setView([55.7558, 37.6173], 5); // Начальные координаты и зум
+      modalMapInstance = L.map('modalMap').setView([52.034296, 113.531892], 15); // Начальные координаты и зум
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       }).addTo(modalMapInstance);
@@ -888,39 +888,61 @@ $(function() {
   }
 
   // Обновление маркеров на карте
-  function updateMapMarkers() {
-      if (!modalMapInstance) return;
+// Функция для обновления маркеров на карте
+function updateMapMarkers() {
+    if (!modalMapInstance) return;
 
-      // Очистка старых маркеров
-      Object.values(markers).forEach(marker => marker.remove());
-      markers = {};
+    // Очистка старых маркеров
+    Object.values(markers).forEach(marker => marker.remove());
+    markers = {};
 
-      // Добавление новых маркеров из загруженных данных
-      solarPanelData.forEach(p => {
-          if (p.lat != null && p.lng != null) { // Проверка наличия координат
-              const marker = L.circleMarker([p.lat, p.lng], {
-                  radius: 8, fillColor: "#ff7800", color: "#000",
-                  weight: 1, opacity: 1, fillOpacity: 0.8
-              }).addTo(modalMapInstance)
-                .bindPopup(`<b>ID Панели:</b> ${p.id_panel}<br><b>Хаб:</b> ${p.hub_id || 'N/A'}`);
+    // Добавление новых маркеров из загруженных данных
+    solarPanelData.forEach(p => {
+        let lat = null;
+        let lng = null;
+        // Попытка распарсить координаты из строки 'coordinates'
+        if (p.coordinates) {
+            try {
+                // Если coordinates - это JSON-строка, парсим ее
+                const coords = JSON.parse(p.coordinates);
+                lat = coords.lat;
+                lng = coords.lng;
+            } catch (e) {
+                // Если парсинг JSON не удался, попробуем формат "lat,lng"
+                const parts = String(p.coordinates).split(',');
+                if (parts.length === 2) { // <--- Эта часть кода обрабатывает формат "lat,lng"
+                    lat = parseFloat(parts[0].trim());
+                    lng = parseFloat(parts[1].trim());
+                } else {
+                    console.warn(`Error parsing coordinates for panel ${p.id_panel}: Invalid format. Expected JSON or "lat,lng".`, p.coordinates);
+                }
+            }
+        }
 
-              // Обработчик клика на маркер
-              marker.on('click', () => {
-                  // panelSelect.val(p.id_panel).trigger('change'); // Удалено
-                  selectedPanelId = p.id_panel; // Обновляем ID
-                  const panelText = `Панель ${p.id_panel} (Хаб: ${p.hub_id || 'N/A'})`;
-                  selectedPanelNameDisplay.text(panelText); // Обновляем текст над графиками
-                  mapModal.hide(); // Закрываем модальное окно
-                  setActivePeriodButton(dayBtn); // Сбрасываем период на "День"
-                  fetchData({ range: 'day' });   // Загружаем данные для выбранной панели
-              });
-              markers[p.id_panel] = marker;
-          } else {
-              console.warn(`Panel ${p.id_panel} is missing coordinates.`);
-          }
-      });
-      console.log("Map markers updated");
-  }
+        // Проверка наличия корректных координат
+        if (lat != null && lng != null && !isNaN(lat) && !isNaN(lng)) {
+            const marker = L.circleMarker([lat, lng], {
+                radius: 8, fillColor: "#ff7800", color: "#000",
+                weight: 1, opacity: 1, fillOpacity: 0.8
+            }).addTo(modalMapInstance)
+              .bindPopup(`<b>ID Панели:</b> ${p.id_panel}<br><b>Хаб:</b> ${p.hub_id || 'N/A'}<br><b>Координаты:</b> ${lat}, ${lng}`);
+
+            // Обработчик клика на маркер
+            marker.on('click', () => {
+                selectedPanelId = p.id_panel; // Обновляем ID
+                const panelText = `Панель ${p.id_panel} (Хаб: ${p.hub_id || 'N/A'})`;
+                selectedPanelNameDisplay.text(panelText); // Обновляем текст над графиками
+                mapModal.hide(); // Закрываем модальное окно
+                setActivePeriodButton(dayBtn); // Сбрасываем период на "День"
+                fetchData({ range: 'day' });   // Загружаем данные для выбранной панели
+            });
+            markers[p.id_panel] = marker;
+        } else {
+            console.warn(`Panel ${p.id_panel} is missing or has invalid coordinates. Coordinates: '${p.coordinates}'`);
+        }
+    });
+    console.log("Map markers updated");
+}
 
   // Заполнение списка панелей в модальном окне
   function populatePanelList() {

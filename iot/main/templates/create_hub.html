@@ -1,172 +1,197 @@
 {% extends 'base.html' %}
 {% load static %}
 
-
-
 {% block content %}
 <style>
-      /* static/css/create_hub_form.css (полностью переписанный) */
+      /* static/css/create_hub_form.css (полностью переписанный) */
 
 /* --- Светлая тема --- */
 
 .form-container {
-    max-width: 500px;
-    margin: 50px auto;
-    padding: 30px 35px;
-    background-color: #ffffff; /* был --sidebar-color */
-    border-radius: 8px;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
-    color: #707070; /* был --text-color */
+    max-width: 500px;
+    margin: 50px auto;
+    padding: 30px 35px;
+    background-color: #ffffff; /* был --sidebar-color */
+    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+    color: #707070; /* был --text-color */
 }
 
 .form-container h2 {
-    text-align: center;
-    margin-bottom: 30px;
-    font-size: 26px;
-    color: #707070; /* был --text-color */
-    font-weight: 600;
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 26px;
+    color: #707070; /* был --text-color */
+    font-weight: 600;
 }
 
 .form-container form p {
-    margin-bottom: 20px;
+    margin-bottom: 20px;
 }
 
 .form-container form label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: 500;
-    font-size: 14px;
-    color: #707070; /* был --text-color */
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    font-size: 14px;
+    color: #707070; /* был --text-color */
 }
 
 .form-container form input[type="text"],
 .form-container form input[type="url"],
 .form-container form textarea {
-    width: 100%;
-    padding: 12px 15px;
-    border: 1px solid #dddddd; /* был --toggle-color */
-    border-radius: 6px;
-    box-sizing: border-box;
-    font-size: 16px;
-    background-color: #eae8f6; /* был --body-color */
-    color: #707070; /* был --text-color */
-    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    width: 100%;
+    padding: 12px 15px;
+    border: 1px solid #dddddd; /* был --toggle-color */
+    border-radius: 6px;
+    box-sizing: border-box;
+    font-size: 16px;
+    background-color: #eae8f6; /* был --body-color */
+    color: #707070; /* был --text-color */
+    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 }
 
 .form-container form textarea {
-    min-height: 100px;
-    resize: vertical;
+    min-height: 100px;
+    resize: vertical;
 }
 
 .form-container form input[type="text"]:focus,
 .form-container form input[type="url"]:focus,
 .form-container form textarea:focus {
-    border-color: #695cfe; /* был --primary-color */
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(105, 92, 254, 0.15);
+    border-color: #695cfe; /* был --primary-color */
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(105, 92, 254, 0.15);
 }
 
 .form-container button[type="submit"] {
-    width: 100%;
-    padding: 12px 15px;
-    background-color: #695cfe; /* был --primary-color */
-    color: #ffffff;
-    border: none;
-    border-radius: 6px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 0.2s ease-in-out;
-    margin-top: 10px;
+    width: 100%;
+    padding: 12px 15px;
+    background-color: #695cfe; /* был --primary-color */
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+    margin-top: 10px;
 }
 
 .form-container button[type="submit"]:hover {
-    background-color: #5848d3; /* Затемненный #695cfe */
+    background-color: #5848d3; /* Затемненный #695cfe */
 }
 
 .form-container ul.errors {
-    list-style-type: none;
-    padding: 15px;
-    margin-top: 25px;
-    margin-bottom: 0;
-    background-color: #fdecea;
-    border: 1px solid #f5c6cb;
-    border-radius: 6px;
-    color: #721c24;
+    list-style-type: none;
+    padding: 15px;
+    margin-top: 25px;
+    margin-bottom: 0;
+    background-color: #fdecea;
+    border: 1px solid #f5c6cb;
+    border-radius: 6px;
+    color: #721c24;
 }
 
 .form-container ul.errors li {
-    padding: 5px 0;
-    font-size: 14px;
+    padding: 5px 0;
+    font-size: 14px;
 }
 
 .form-container ul.errors li:last-child {
-    margin-bottom: 0;
+    margin-bottom: 0;
 }
+
+.form-container .link-to-list {
+    display: block;
+    text-align: center;
+    margin-top: 20px;
+    padding: 10px 15px;
+    background-color: #4CAF50; /* Зеленый */
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+}
+
+.form-container .link-to-list:hover {
+    background-color: #45a049;
+}
+
 
 /* --- Темная тема (применяется, если на body есть класс .dark) --- */
 
 body.dark .form-container {
-    background-color: #242526; /* был --sidebar-color (dark) */
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
-    color: #cccccc; /* был --text-color (dark) */
+    background-color: #242526; /* был --sidebar-color (dark) */
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+    color: #cccccc; /* был --text-color (dark) */
 }
 
 body.dark .form-container h2 {
-    color: #cccccc; /* был --text-color (dark) */
+    color: #cccccc; /* был --text-color (dark) */
 }
 
 body.dark .form-container form label {
-    color: #cccccc; /* был --text-color (dark) */
+    color: #cccccc; /* был --text-color (dark) */
 }
 
 body.dark .form-container form input[type="text"],
 body.dark .form-container form input[type="url"],
 body.dark .form-container form textarea {
-    border: 1px solid #4b545c; /* мой вариант для лучшего контраста */
-    background-color: #2c3034; /* мой вариант для лучшего контраста */
-    color: #cccccc; /* был --text-color (dark) */
+    border: 1px solid #4b545c; /* мой вариант для лучшего контраста */
+    background-color: #2c3034; /* мой вариант для лучшего контраста */
+    color: #cccccc; /* был --text-color (dark) */
 }
 
 body.dark .form-container form input[type="text"]:focus,
 body.dark .form-container form input[type="url"]:focus,
 body.dark .form-container form textarea:focus {
-    border-color: #695cfe; /* Яркий акцент для фокуса */
-    box-shadow: 0 0 0 3px rgba(105, 92, 254, 0.25);
+    border-color: #695cfe; /* Яркий акцент для фокуса */
+    box-shadow: 0 0 0 3px rgba(105, 92, 254, 0.25);
 }
 
 body.dark .form-container button[type="submit"] {
-    background-color: #695cfe; /* Яркий цвет кнопки */
-    color: #ffffff;
+    background-color: #695cfe; /* Яркий цвет кнопки */
+    color: #ffffff;
 }
 
 body.dark .form-container button[type="submit"]:hover {
-    background-color: #5848d3;
+    background-color: #5848d3;
 }
 
 body.dark .form-container ul.errors {
-    background-color: #4a2527;
-    border-color: #8c4a4a;
-    color: #f5c6cb;
+    background-color: #4a2527;
+    border-color: #8c4a4a;
+    color: #f5c6cb;
 }
+
+body.dark .form-container .link-to-list {
+    background-color: #28a745;
+}
+
+body.dark .form-container .link-to-list:hover {
+    background-color: #218838;
+}
+
 </style>
 <div class="form-container"> <h2>Создать хаб</h2>
-  <form method="post" class="hub-form">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Создать</button>
-  </form>
-  {% if form.errors %}
-    <ul class="errors">
-      {% for field in form %}
-        {% for error in field.errors %}
-          <li><strong>{{ field.label }}:</strong> {{ error }}</li>
-        {% endfor %}
-      {% endfor %}
-      {% for error in form.non_field_errors %}
-        <li>{{ error }}</li>
-      {% endfor %}
-    </ul>
-  {% endif %}
+  <form method="post" class="hub-form">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Создать</button>
+  </form>
+  {% if form.errors %}
+    <ul class="errors">
+      {% for field in form %}
+        {% for error in field.errors %}
+          <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+        {% endfor %}
+      {% endfor %}
+      {% for error in form.non_field_errors %}
+        <li>{{ error }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+    <a href="{% url 'hub_list' %}" class="link-to-list">Перейти к списку хабов</a>
 </div>
 {% endblock %}

@@ -30,7 +30,7 @@ urlpatterns = [
     path('get_recent_char/<int:panel_id>/', views.get_recent_char, name='get_recent_char'),
     path('test_chart/', views.test_chart, name='test_chart'),
     path('panel-characteristics/<int:panel_id>/', views.solar_panel_characteristics, name='panel_characteristics'),
-    path('api/', include(router.urls)),
+    path('api/', include(router.urls)), 
     path('api/data-submission/', DataSubmissionAPIView.as_view(), name='data-submission'),
     path('solar-panels/', SolarPanelsView.as_view(), name='solar-panels'),
     path('manage/', views.ManagementView.as_view(), name='manage_panels'),
@@ -38,4 +38,8 @@ urlpatterns = [
     path('api/send_command/', views.ApiCommandView.as_view(), name='api_send_command'),
     path('api/sync-panel-data/', views.sync_latest_panel_data_to_main_models, name='sync_latest_panel_data'),
     path('admin-area/create-hub/', views.CreateHubView.as_view(), name='create_hub'),
+    path('create/', CreateHubView.as_view(), name='create_hub'),
+    path('hubs/', HubListView.as_view(), name='hub_list'), # Новый маршрут для списка хабов
+    path('hubs/<str:pk>/edit/', HubUpdateView.as_view(), name='hub_edit'), # Новый маршрут для редактирования
+    path('hubs/<str:pk>/delete/', HubDeleteView.as_view(), name='hub_delete'), # Новый маршрут для удаления
 ]

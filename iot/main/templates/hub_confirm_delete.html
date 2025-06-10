@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    /* Стили, адаптированные для страницы подтверждения */
+    .confirm-container {
+        max-width: 500px;
+        margin: 80px auto;
+        padding: 30px 35px;
+        background-color: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+        color: #707070;
+        text-align: center;
+    }
+
+    .confirm-container h2 {
+        margin-bottom: 20px;
+        font-size: 26px;
+        color: #dc3545; /* Красный цвет для предупреждения */
+        font-weight: 600;
+    }
+
+    .confirm-container p {
+        margin-bottom: 25px;
+        font-size: 16px;
+        line-height: 1.6;
+    }
+
+    .confirm-container .hub-id {
+        font-weight: bold;
+        color: #333333;
+    }
+
+    .confirm-container .actions {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        margin-top: 30px;
+    }
+
+    .confirm-container button[type="submit"], .confirm-container .btn-cancel {
+        padding: 12px 25px;
+        border: none;
+        border-radius: 6px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+        text-decoration: none; /* Для ссылки */
+        display: inline-block; /* Для ссылки */
+    }
+
+    .confirm-container button[type="submit"] {
+        background-color: #dc3545; /* Красный для удаления */
+        color: #ffffff;
+    }
+
+    .confirm-container button[type="submit"]:hover {
+        background-color: #c82333;
+        transform: translateY(-1px);
+    }
+
+    .confirm-container .btn-cancel {
+        background-color: #6c757d; /* Серый для отмены */
+        color: #ffffff;
+    }
+
+    .confirm-container .btn-cancel:hover {
+        background-color: #5a6268;
+        transform: translateY(-1px);
+    }
+
+    .confirm-container .error-message {
+        color: #dc3545;
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        padding: 10px;
+        border-radius: 5px;
+        margin-top: 20px;
+    }
+
+    /* Темная тема */
+    body.dark .confirm-container {
+        background-color: #242526;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+        color: #cccccc;
+    }
+
+    body.dark .confirm-container h2 {
+        color: #dc3545;
+    }
+
+    body.dark .confirm-container .hub-id {
+        color: #eeeeee;
+    }
+
+    body.dark .confirm-container button[type="submit"] {
+        background-color: #dc3545;
+    }
+
+    body.dark .confirm-container button[type="submit"]:hover {
+        background-color: #c82333;
+    }
+
+    body.dark .confirm-container .btn-cancel {
+        background-color: #6c757d;
+    }
+
+    body.dark .confirm-container .btn-cancel:hover {
+        background-color: #5a6268;
+    }
+
+    body.dark .confirm-container .error-message {
+        background-color: #4a2527;
+        border-color: #8c4a4a;
+        color: #f5c6cb;
+    }
+</style>
+
+<div class="confirm-container">
+    <h2>Подтвердите удаление</h2>
+    {% if error %}
+        <p class="error-message">{{ error }}</p>
+    {% endif %}
+    <p>Вы действительно хотите удалить хаб <span class="hub-id">{{ hub.id_hub }}</span>?</p>
+    <p>Это действие необратимо и приведет к удалению всех связанных с ним панелей.</p>
+
+    <form method="post" class="actions">
+        {% csrf_token %}
+        <button type="submit">Удалить</button>
+        <a href="{% url 'hub_list' %}" class="btn-cancel">Отмена</a>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    /* Базовые стили для светлой темы */
+    .list-container {
+        max-width: 800px;
+        margin: 50px auto;
+        padding: 30px 35px;
+        background-color: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+        color: #707070;
+    }
+
+    .list-container h2 {
+        text-align: center;
+        margin-bottom: 30px;
+        font-size: 26px;
+        color: #707070;
+        font-weight: 600;
+    }
+
+    .list-container table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+
+    .list-container th, .list-container td {
+        border: 1px solid #dddddd;
+        padding: 12px 15px;
+        text-align: left;
+    }
+
+    .list-container th {
+        background-color: #f2f2f2;
+        font-weight: 600;
+        color: #555555;
+    }
+
+    .list-container tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+
+    .list-container .actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .list-container .btn {
+        display: inline-block;
+        padding: 8px 15px;
+        border-radius: 5px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+        font-size: 14px;
+    }
+
+    .list-container .btn-edit {
+        background-color: #695cfe; /* primary-color */
+        color: #ffffff;
+    }
+
+    .list-container .btn-edit:hover {
+        background-color: #5848d3;
+    }
+
+    .list-container .btn-delete {
+        background-color: #dc3545; /* Красный для удаления */
+        color: #ffffff;
+    }
+
+    .list-container .btn-delete:hover {
+        background-color: #c82333;
+    }
+
+    .list-container .no-hubs {
+        text-align: center;
+        padding: 20px;
+        font-style: italic;
+        color: #999999;
+    }
+
+    .add-hub-link-container {
+        text-align: center;
+        margin-top: 30px;
+    }
+
+    .add-hub-link {
+        display: inline-block;
+        padding: 12px 25px;
+        background-color: #28a745; /* Зеленый для добавления */
+        color: #ffffff;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: background-color 0.2s ease-in-out;
+    }
+
+    .add-hub-link:hover {
+        background-color: #218838;
+    }
+
+    /* Стили для темной темы */
+    body.dark .list-container {
+        background-color: #242526;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+        color: #cccccc;
+    }
+
+    body.dark .list-container h2 {
+        color: #cccccc;
+    }
+
+    body.dark .list-container th {
+        background-color: #333333;
+        color: #dddddd;
+    }
+
+    body.dark .list-container td {
+        border-color: #4b545c;
+        color: #cccccc;
+    }
+
+    body.dark .list-container tr:nth-child(even) {
+        background-color: #2c3034;
+    }
+
+    body.dark .list-container .no-hubs {
+        color: #888888;
+    }
+
+    body.dark .list-container .btn-edit {
+        background-color: #695cfe;
+    }
+
+    body.dark .list-container .btn-edit:hover {
+        background-color: #5848d3;
+    }
+
+    body.dark .list-container .btn-delete {
+        background-color: #dc3545;
+    }
+
+    body.dark .list-container .btn-delete:hover {
+        background-color: #c82333;
+    }
+
+    body.dark .add-hub-link {
+        background-color: #28a745;
+    }
+
+    body.dark .add-hub-link:hover {
+        background-color: #218838;
+    }
+</style>
+
+<div class="list-container">
+    <h2>Список хабов</h2>
+
+    {% if hubs %}
+    <table>
+        <thead>
+            <tr>
+                <th>Идентификатор хаба</th>
+                <th>IP-адрес</th>
+                <th>Порт</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for hub in hubs %}
+            <tr>
+                <td>{{ hub.id_hub }}</td>
+                <td>{{ hub.ip_address }}</td>
+                <td>{{ hub.port }}</td>
+                <td class="actions">
+                    <a href="{% url 'hub_edit' pk=hub.id_hub %}" class="btn btn-edit">Редактировать</a>
+                    <a href="{% url 'hub_delete' pk=hub.id_hub %}" class="btn btn-delete">Удалить</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="no-hubs">Нет зарегистрированных хабов.</p>
+    {% endif %}
+
+    <div class="add-hub-link-container">
+        <a href="{% url 'create_hub' %}" class="add-hub-link">Добавить новый хаб</a>
+    </div>
+</div>
+{% endblock %}
