@@ -1,7 +1,6 @@
 {% load static %}
 
-
-{% block content %}
+{# No need for {% block content %} here, as it's already included in the original prompt. #}
 <style>
   /* static/css/login_form.css (полностью переписанный) */
 
@@ -77,6 +76,29 @@
     background-color: #5848d3; /* Затемненный #695cfe */
 }
 
+/* New style for the "Guest Login" button */
+.auth-container .guest-login-button {
+    width: 100%;
+    padding: 12px 15px;
+    background-color: #707070; /* A neutral color, like dark gray */
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+    margin-top: 15px; /* Add some space above it */
+    text-align: center; /* Center the text inside the button */
+    display: block; /* Make it a block element to take full width */
+    text-decoration: none; /* Remove underline for links */
+}
+
+.auth-container .guest-login-button:hover {
+    background-color: #555555; /* Darker gray on hover */
+}
+
+
 .auth-container ul.errors {
     list-style-type: none;
     padding: 15px;
@@ -137,6 +159,15 @@ body.dark .auth-container button[type="submit"]:hover {
     background-color: #5848d3;
 }
 
+body.dark .auth-container .guest-login-button {
+    background-color: #5a5c5e; /* Darker neutral for dark mode */
+}
+
+body.dark .auth-container .guest-login-button:hover {
+    background-color: #4a4c4e;
+}
+
+
 body.dark .auth-container ul.errors {
     background-color: #4a2527;
     border-color: #8c4a4a;
@@ -150,6 +181,9 @@ body.dark .auth-container ul.errors {
     {{ form.as_p }}
     <button type="submit">Войти</button>
   </form>
+  {# New Guest Login Button #}
+  <a href="{% url 'guest_login' %}" class="guest-login-button">Зайти как гость</a>
+  
   {% if form.errors %}
     <ul class="errors">
       {% for field in form %}
@@ -163,4 +197,4 @@ body.dark .auth-container ul.errors {
     </ul>
   {% endif %}
 </div>
-{% endblock %}
+{# Removed extra {% endblock %} as it's typically handled by a base template #}

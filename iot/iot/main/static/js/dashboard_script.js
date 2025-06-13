@@ -287,70 +287,12 @@ $(function() {
             delete params.panel_id;
         }
 
-        // Имитация запроса к API. В реальном приложении:
+        // РЕАЛЬНЫЙ ЗАПРОС К API Django
         $.getJSON('/get-general-characteristics-data/', params)
             .done(updateDashboard)
-            .fail(() => showError('Не удалось загрузить данные характеристик'))
+            .fail(() => showError('Не удалось загрузить данные характеристик. Проверьте эндпоинт Django.'))
             .always(hideLoading);
-
-        // --- Заглушка для демонстрации без реального бэкенда ---
-        /*
-        const mockData = generateMockData(params);
-        setTimeout(() => {
-            updateDashboard(mockData);
-            hideLoading();
-        }, 800);
-        */
-        // --- Конец заглушки ---
     }
-
-    // Функция для генерации моковых данных (для тестирования без бэкенда)
-    function generateMockData(params) {
-        const dates = [];
-        const generated_power = [];
-        const consumed_power = [];
-        let startDate, endDate, interval;
-
-        if (params.range === 'day') {
-            startDate = moment().subtract(1, 'days').startOf('day');
-            endDate = moment().subtract(1, 'days').endOf('day');
-            interval = 'hour';
-        } else if (params.range === 'week') {
-            startDate = moment().subtract(7, 'days').startOf('day');
-            endDate = moment().endOf('day');
-            interval = 'day';
-        } else if (params.range === 'month') {
-            startDate = moment().subtract(30, 'days').startOf('day');
-            endDate = moment().endOf('day');
-            interval = 'day';
-        } else if (params.start_date && params.end_date) {
-            startDate = moment(params.start_date, 'YYYY-MM-DD').startOf('day');
-            endDate = moment(params.end_date, 'YYYY-MM-DD').endOf('day');
-            const diffDays = endDate.diff(startDate, 'days');
-            if (diffDays <= 2) interval = 'hour';
-            else if (diffDays <= 30) interval = 'day';
-            else interval = 'week';
-        } else {
-            startDate = moment().subtract(1, 'days').startOf('day');
-            endDate = moment().subtract(1, 'days').endOf('day');
-            interval = 'hour';
-        }
-
-        let current = moment(startDate);
-        while (current.isSameOrBefore(endDate)) {
-            dates.push(current.toISOString());
-            const gen = (Math.random() * 50) + 20; // 20-70 кВт
-            const cons = (Math.random() * 30) + 10; // 10-40 кВт
-            generated_power.push(parseFloat(gen.toFixed(2)));
-            consumed_power.push(parseFloat(cons.toFixed(2)));
-
-            if (interval === 'hour') current.add(1, 'hour');
-            else if (interval === 'day') current.add(1, 'day');
-            else if (interval === 'week') current.add(1, 'week');
-        }
-        return { date: dates, generated_power, consumed_power };
-    }
-
 
     // Инициализация карты Leaflet в модальном окне
     function initializeModalMap() {
@@ -439,40 +381,20 @@ $(function() {
         });
     }
 
-    // Загрузка данных о панелях (имитация)
+    // Загрузка данных о панелях
     function fetchPanelData() {
-        $.getJSON('/solar-panels/') // Ваш реальный API-эндпоинт Django
+        // РЕАЛЬНЫЙ ЗАПРОС К API Django
+        $.getJSON('/solar-panels/')
             .done(data => {
                 solarPanelData = data;
                 populatePanelList();
             })
             .fail(() => {
-                showError('Не удалось загрузить данные о панелях');
+                showError('Не удалось загрузить данные о панелях. Проверьте эндпоинт Django.');
                 modalPanelList.html('<li>Ошибка загрузки списка.</li>');
                 // Добавляем "Все панели" даже при ошибке загрузки остальных
                 populatePanelList();
             });
-
-        // --- Заглушка для демонстрации без реального бэкенда ---
-        /*
-        const mockPanelData = [
-            { id_panel: 'SP001', hub_id: 'HUB_A', lat: 55.7558, lng: 37.6173 },
-            { id_panel: 'SP002', hub_id: 'HUB_B', lat: 59.9343, lng: 30.3351 },
-            { id_panel: 'SP003', hub_id: 'HUB_C', lat: 56.8389, lng: 60.6057 },
-            { id_panel: 'SP004', hub_id: 'HUB_A', lat: 55.0302, lng: 82.9204 },
-            { id_panel: 'SP005', hub_id: 'HUB_D', lat: 43.1167, lng: 131.8761 },
-            { id_panel: 'SP006', hub_id: 'HUB_B', lat: 51.5074, lng: 0.1278 }, // Лондон
-            { id_panel: 'SP007', hub_id: 'HUB_C', lat: 40.7128, lng: -74.0060 }, // Нью-Йорк
-            { id_panel: 'SP008', hub_id: 'HUB_D', lat: 34.0522, lng: -118.2437 }, // Лос-Анджелес
-            { id_panel: 'SP009', hub_id: 'HUB_A', lat: 48.8566, lng: 2.3522 }, // Париж
-            { id_panel: 'SP010', hub_id: 'HUB_B', lat: 35.6895, lng: 139.6917 }, // Токио
-        ];
-        setTimeout(() => {
-            solarPanelData = mockPanelData;
-            populatePanelList();
-        }, 500);
-        */
-        // --- Конец заглушки ---
     }
 
 
@@ -559,17 +481,6 @@ $(function() {
             initializeModalMap();
         }
     });
-
-    // Синхронизация Leaflet карты при изменении размера сайдбара
-    // Эта функция вызывается из main.js
-    // $(window).on('sidebarToggled', function() {
-    //     if (mapModal.is(':visible') && $('#mapTab').hasClass('active') && modalMapInstance) {
-    //         setTimeout(() => {
-    //             modalMapInstance.invalidateSize();
-    //         }, 300);
-    //     }
-    // });
-
 
     // --- Первоначальная загрузка данных ---
     fetchPanelData(); // Загружаем данные о панелях (и заполняем список)

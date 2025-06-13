@@ -1,44 +1,24 @@
 # forms.py
 from django import forms
 from django.db import connections
-from django.db.models import UniqueConstraint # Необходимо для PanelData в моделях
 
 # Предполагается, что модели Hub, Panel, PanelType, PanelStatus, PanelData определены в models.py
 # и доступны здесь (например, через from .models import Hub, Panel, PanelType)
-# Если они в другом месте, вам нужно будет импортировать их соответствующим образом.
-# Для простоты, я предполагаю, что forms.py находится в том же приложении, что и models.py.
-# Если нет, замените 'from .models import ...' на 'from your_app_name.models import ...'
-from .models import Hub, Panel, PanelType # Импортируем только нужные модели для формы
+from .models import Hub, Panel, PanelType # PanelType может понадобиться, если вы хотите его использовать для PanelForm
 
 class HubForm(forms.Form):
     """
     Форма для создания и редактирования хабов.
-    Адаптирована для проверки уникальности id_hub с учетом случая редактирования.
+    Теперь содержит только поля, относящиеся к самому хабу.
+    Данные по панелям обрабатываются отдельно в представлении.
     """
     id_hub = forms.CharField(label='Идентификатор хаба', max_length=50)
     ip_address = forms.GenericIPAddressField(label='IP-адрес')
     port = forms.IntegerField(label='Порт')
-    panel_count = forms.IntegerField(label='Количество панелей', min_value=1,
-                                     help_text="Используется только при создании хаба. При редактировании изменение количества панелей не поддерживается через эту форму.")
-    panel_prefix = forms.CharField(label='Префикс названия панели', max_length=30,
-                                    help_text="Используется только при создании хаба.")
-    panel_type = forms.ChoiceField(label='Тип панели', choices=PanelType.choices) # Используем choices из PanelType
 
     def __init__(self, *args, **kwargs):
-        # instance будет передан, если форма используется для редактирования
         self.instance = kwargs.pop('instance', None)
         super().__init__(*args, **kwargs)
-
-        # При редактировании делаем поля count и prefix необязательными и невидимыми,
-        # так как логика изменения количества панелей более сложна и не в рамках этой формы
-        if self.instance:
-            self.fields['panel_count'].required = False
-            self.fields['panel_count'].widget = forms.HiddenInput()
-            self.fields['panel_prefix'].required = False
-            self.fields['panel_prefix'].widget = forms.HiddenInput()
-            # При редактировании, если хотим запретить изменение id_hub, можно сделать его readonly
-            # self.fields['id_hub'].widget.attrs['readonly'] = True
-
 
     def clean_id_hub(self):
         """
@@ -47,7 +27,7 @@ class HubForm(forms.Form):
         и id_hub не изменился, то проверка на уникальность не требуется.
         """
         id_hub = self.cleaned_data['id_hub']
-        
+
         # Если это режим редактирования и id_hub не изменился
         if self.instance and self.instance.id_hub == id_hub:
             return id_hub
@@ -60,21 +40,26 @@ class HubForm(forms.Form):
                 raise forms.ValidationError('Хаб с таким идентификатором уже существует.')
         return id_hub
 
-    def clean_panel_prefix(self):
-        """
-        Валидация префикса панели.
-        Эта проверка актуальна только при создании нового хаба.
-        """
-        prefix = self.cleaned_data['panel_prefix']
-        
-        # Если это режим редактирования, то эту проверку можно пропустить
-        if self.instance:
-            return prefix
 
-        conn = connections['solar_panel_db']
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT id_panel FROM id_panel WHERE id_panel LIKE %s", [prefix + '%'])
-            if cursor.fetchone():
-                raise forms.ValidationError('Панели с данным префиксом уже существуют.')
-        return prefix
+class PanelInlineForm(forms.Form):
+    """
+    Вспомогательная форма для валидации данных одной динамически добавленной панели.
+    Используется только для валидации данных, приходящих из POST-запроса,
+    не для рендеринга полей формы в HTML.
+    """
+    id_panel = forms.CharField(label='Имя панели', max_length=50)
+    coordinates = forms.CharField(label='Координаты (lat,lng)', max_length=100) # Будет проверяться regex в clean
+    type = forms.ChoiceField(label='Тип панели', choices=PanelType.choices)
 
+    def clean_coordinates(self):
+        coords_str = self.cleaned_data['coordinates']
+        # Проверяем формат "lat,lng" с помощью регулярного выражения
+        import re
+        if not re.match(r"^(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)$", coords_str):
+            raise forms.ValidationError('Неверный формат координат. Ожидается: широта, долгота (например, 40.714, -74.005)')
+        return coords_str
+
+    # Удален метод clean_id_panel, так как его логика была слишком строгой
+    # и не соответствовала требованию уникальности в пределах хаба.
+    # Проверка уникальности id_panel в связке с id_hub теперь полагается
+    # на ограничения базы данных и Django ORM.

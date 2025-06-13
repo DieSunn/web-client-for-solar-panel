@@ -25,12 +25,14 @@ from datetime import timedelta
 from django.utils import timezone
 import logging # Recommended for logging errors
 from .services import sync_all_panel_data, SyncResult
-from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.decorators import login_required, permission_required, user_passes_test
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from .forms import HubForm
+from django.contrib.auth.models import User, Group
+from .forms import *
 import uuid
 from django.db import connections, transaction
+from .decorators import *
 
 
 logger = logging.getLogger(__name__)
@@ -38,9 +40,9 @@ logger = logging.getLogger(__name__)
 
 #Тут заменить на api сервера
 EXTERNAL_API_URL = "http://85.193.80.133:8080"  
+ARCHIVE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'hub_archives')
 
-
-class DashboardView(LoginRequiredMixin, View):
+class DashboardView(View):
     def get(self, request, *args, **kwargs):
         # Получаем все панели
         panels = Panel.objects.select_related('hub') \
@@ -178,39 +180,6 @@ def get_general_characteristics_data(request):
     }
     return JsonResponse(data)
 
-# # Класс представления table.html
-# class CharTableView(View):
-#     def get(self, request, *args, **kwargs):
-#         night_mode = request.COOKIES.get('night_mode', 'off')
-
-#         # Проверяем параметр 'night_mode' в GET запросе
-#         if 'night_mode' in request.GET:
-#             night_mode = request.GET['night_mode']
-
-#         char = Characteristics.objects.order_by('-date', '-time')
-#         solar_panels = Solar_Panel.objects.all().order_by('id')
-
-#         # Инициализация пагинатора на 10 элементов/страница
-#         paginator = Paginator(char, 10)
-#         page_number=request.GET.get('page')
-
-#         try:
-#             characteristics=paginator.page(page_number)
-#         except PageNotAnInteger:
-#             # Если номер страницы не является целым числом, отображаем первую страницу
-#             characteristics = paginator.page(1)
-#         except EmptyPage:
-#              # Если страница находится за пределами доступных страниц, отображаем последнюю страницу
-#             characteristics = paginator.page(paginator.num_pages)
-
-#         response = render(request, "table.html", {
-#                           'characteristics': characteristics, 
-#                           'night_mode': night_mode, 
-#                           "solar_panels": solar_panels,
-#                           })
-#         response.set_cookie('night_mode', night_mode)
-
-#         return response
 
 class CharTableView(View):
     def get(self, request, *args, **kwargs):
@@ -429,10 +398,12 @@ def solar_panel_characteristics(request, panel_id):
     }
     return JsonResponse(data)
 
+@method_decorator(login_required, name='dispatch')    
 class SolarPanelViewSet(viewsets.ModelViewSet):
     queryset = Solar_Panel.objects.all().order_by('id')
     serializer_class = SolarPanelSerializer
 
+@method_decorator(login_required, name='dispatch')    
 class CharacteristicsViewSet(viewsets.ModelViewSet):
     queryset = Characteristics.objects.all()  # Добавлено для определения basename
     serializer_class = CharacteristicsSerializer
@@ -493,7 +464,7 @@ def wind_direction(degrees):
         return 'Северо-западный'
     else:
         return 'Неизвестное направление'
-    
+@method_decorator(login_required, name='dispatch')    
 class DataSubmissionAPIView(APIView):
     """
     API endpoint для внесения данных о характеристиках панели.
@@ -520,7 +491,8 @@ class DataSubmissionAPIView(APIView):
             queryset = queryset.filter(date__range=[start_date, end_date])
         serializer = CharacteristicsSerializer(queryset, many=True)
         return Response(serializer.data)
-    
+
+@method_decorator(login_required, name='dispatch')    
 class ManagementView(View):
     def get(self, request, *args, **kwargs):
         night_mode = request.COOKIES.get('night_mode', 'off')
@@ -535,6 +507,7 @@ class ManagementView(View):
         }
         return render(request, 'management.html', context)
 
+@method_decorator(login_required, name='dispatch')    
 class PanelDetailView(View):
     def get(self, request, hub_id, panel_id, *args, **kwargs):
         night_mode = request.COOKIES.get('night_mode', 'off')
@@ -549,6 +522,44 @@ class PanelDetailView(View):
         }
         return render(request, 'panel_detail.html', context)
 
+def guest_login_view(request):
+    """
+    Логинит пользователя как "Гость".
+    Предполагается, что существует пользователь с именем 'guest_user'
+    и он добавлен в группу 'Guest'.
+    """
+    if request.user.is_authenticated:
+        # Если пользователь уже вошел, просто перенаправляем его
+        return redirect('hub_list') # Или куда-либо еще
+
+    try:
+        # Находим пользователя 'guest_user'
+        # Предполагаем, что такой пользователь существует
+        guest_user = User.objects.get(username='guest_user')
+
+        # Проверяем, что 'guest_user' принадлежит группе 'Guest'
+        guest_group = Group.objects.get(name='Guest')
+        if not guest_user.groups.filter(name='Guest').exists():
+            guest_user.groups.add(guest_group)
+            logger.info(f"Added user '{guest_user.username}' to 'Guest' group.")
+
+        login(request, guest_user)
+        logger.info(f"User '{guest_user.username}' logged in as guest.")
+        return redirect('dashboard') # Перенаправляем на страницу, доступную гостю
+
+    except User.DoesNotExist:
+        logger.error("Attempted guest login, but 'guest_user' does not exist.")
+        # Если пользователь 'guest_user' не найден, вы можете:
+        # 1. Создать его программно (но это лучше делать через миграции или management command)
+        # 2. Вывести сообщение об ошибке
+        # 3. Перенаправить на страницу логина с ошибкой
+        return redirect('login') # Или render('login_form.html', {'error': 'Guest user not configured.'})
+    except Group.DoesNotExist:
+        logger.error("Attempted guest login, but 'Guest' group does not exist.")
+        return redirect('login')
+    except Exception as e:
+        logger.exception(f"Error during guest login: {e}")
+        return redirect('login') # Fallback
 
 # @method_decorator(csrf_exempt, name='dispatch')
 # class ApiCommandView(View):
@@ -637,6 +648,7 @@ class PanelDetailView(View):
 #                     return JsonResponse({"status": "success", "message": "Command sent, but non-JSON response", "api_response": response.text})
 #         except Exception as e:
 #             return JsonResponse({"status": "error", "message": str(e)}, status=500)
+@method_decorator(login_required, name='dispatch')    
 @method_decorator(csrf_exempt, name='dispatch')
 class ApiCommandView(View):
     def post(self, request, *args, **kwargs):
@@ -690,7 +702,7 @@ class ApiCommandView(View):
             return JsonResponse({"status": "error", "message": f"Error communicating with external API: {e}"}, status=500)
         except Exception as e:
             return JsonResponse({"status": "error", "message": f"An unexpected error occurred: {e}"}, status=500)
-
+@method_decorator(login_required, name='dispatch')    
 def sync_latest_panel_data_to_main_models(request):
     db_alias = 'solar_panel_db'
     fetched_data = {}
@@ -787,15 +799,11 @@ def sync_latest_panel_data_to_main_models(request):
         logger.exception("Unexpected error during save")
         return JsonResponse({'status': 'error', 'error': 'Unexpected save error'}, status=500)
 
-
-@method_decorator(staff_member_required, name='dispatch')
+@method_decorator(superuser_access_required, name='dispatch')
+@method_decorator(login_required, name='dispatch')
 class CreateHubView(View):
-    """
-    Представление для создания нового хаба.
-    Обрабатывает GET-запросы для отображения формы и POST-запросы для сохранения данных.
-    """
     template_name = 'create_hub.html'
-    secondary_alias = 'solar_panel_db' # Псевдоним для вторичной базы данных
+    secondary_alias = 'solar_panel_db'
 
     def get(self, request):
         form = HubForm()
@@ -803,52 +811,78 @@ class CreateHubView(View):
 
     def post(self, request):
         form = HubForm(request.POST)
+        
+        panel_errors = []
+        panels_data = []
+
         if not form.is_valid():
             return render(request, self.template_name, {'form': form})
 
         id_hub = form.cleaned_data['id_hub']
         ip = form.cleaned_data['ip_address']
         port = form.cleaned_data['port']
-        count = form.cleaned_data['panel_count']
-        prefix = form.cleaned_data['panel_prefix']
-        ptype = form.cleaned_data['panel_type']
 
-        # Запись во вторичную БД (прямые SQL запросы)
+        total_panels = int(request.POST.get('total_panels', 0))
+        if total_panels == 0:
+            form.add_error(None, "Необходимо добавить хотя бы одну солнечную панель.")
+            return render(request, self.template_name, {'form': form})
+        
+        for i in range(total_panels):
+            panel_prefix = f'panel-{i}-'
+            panel_id = request.POST.get(panel_prefix + 'id_panel')
+            coordinates = request.POST.get(panel_prefix + 'coordinates')
+            panel_type = request.POST.get(panel_prefix + 'type')
+
+            panel_data_for_form = {
+                'id_panel': panel_id,
+                'coordinates': coordinates,
+                'type': panel_type,
+            }
+            panel_form = PanelInlineForm(panel_data_for_form)
+
+            if panel_form.is_valid():
+                panels_data.append(panel_form.cleaned_data)
+            else:
+                for field, errors in panel_form.errors.items():
+                    for error in errors:
+                        panel_errors.append(f"Панель #{i+1} ({panel_data_for_form.get('id_panel', 'N/A')}) - {panel_form.fields[field].label}: {error}")
+        
+        if panel_errors:
+            form.add_error(None, "Обнаружены ошибки в данных солнечных панелей:")
+            for error_msg in panel_errors:
+                form.add_error(None, error_msg)
+            return render(request, self.template_name, {'form': form})
+
         try:
             with transaction.atomic(using=self.secondary_alias):
                 conn = connections[self.secondary_alias]
                 with conn.cursor() as cursor:
-                    # Вставка хаба
                     cursor.execute(
                         """
                         INSERT INTO hub (id_hub, ip_address, port)
                         VALUES (%s, %s, %s)
                         """, [id_hub, ip, port]
                     )
-                    # Вставка панелей
-                    for i in range(1, count + 1):
-                        panel_id = f"{prefix}_{i}"
+                    for p_data in panels_data:
                         cursor.execute(
                             """
                             INSERT INTO id_panel (id_panel, type, id_hub)
                             VALUES (%s, %s, %s)
-                            """, [panel_id, ptype, id_hub]
+                            """, [p_data['id_panel'], p_data['type'], id_hub]
                         )
-            logger.info(f"Hub '{id_hub}' and {count} panels successfully added to secondary DB.")
-        except (ProgrammingError, OperationalError) as e:
+            logger.info(f"Hub '{id_hub}' and {len(panels_data)} panels successfully added to secondary DB (without coordinates).")
+        except (ProgrammingError, OperationalError, IntegrityError) as e:
             logger.exception(f"Secondary DB write failed for hub '{id_hub}': {e}")
-            form.add_error(None, f"Ошибка при сохранении во вторичную БД: {e}")
+            error_message = f"Ошибка при сохранении во вторичную БД. Возможно, хаб или панель с таким ID уже существует в данном хабе: {e}"
+            form.add_error(None, error_message)
             return render(request, self.template_name, {'form': form})
         except Exception as e:
             logger.exception(f"Unexpected error during secondary DB write for hub '{id_hub}': {e}")
             form.add_error(None, f"Неожиданная ошибка при сохранении во вторичную БД: {e}")
             return render(request, self.template_name, {'form': form})
 
-
-        # Если запись во вторичную БД прошла успешно, зеркалируем в основную БД (Django ORM)
         try:
             with transaction.atomic():
-                # Создание хаба в основной БД
                 hub_obj, hub_created = Hub.objects.get_or_create(
                     id_hub=id_hub,
                     defaults={'ip_address': ip, 'port': port}
@@ -856,164 +890,235 @@ class CreateHubView(View):
                 if hub_created:
                     logger.info(f"Created Hub in primary DB: {id_hub}")
                 else:
-                    # Если хаб уже существует в основной БД (но не во вторичной, т.к. там прошла уникальность)
-                    # это может быть нежелательной ситуацией, но в данном случае get_or_create обновит defaults
                     logger.warning(f"Hub '{id_hub}' already exists in primary DB, updating if necessary.")
                     hub_obj.ip_address = ip
                     hub_obj.port = port
                     hub_obj.save()
 
-
-                # Создание объектов Panel в основной БД
-                for i in range(1, count + 1):
-                    panel_id = f"{prefix}_{i}"
+                for p_data in panels_data:
                     panel_obj, panel_created = Panel.objects.get_or_create(
-                        id_panel=panel_id,
+                        id_panel=p_data['id_panel'],
                         hub=hub_obj,
-                        defaults={'type': ptype, 'coordinates': None} # Учитываем 'coordinates' из модели
+                        defaults={'type': p_data['type'], 'coordinates': p_data['coordinates']}
                     )
                     if panel_created:
-                        logger.info(f"Created Panel '{panel_id}' in primary DB for Hub '{id_hub}'")
+                        logger.info(f"Created Panel '{p_data['id_panel']}' in primary DB for Hub '{id_hub}' (with coordinates).")
                     else:
-                        logger.warning(f"Panel '{panel_id}' already exists in primary DB for Hub '{id_hub}', updating if necessary.")
-                        panel_obj.type = ptype
-                        # panel_obj.coordinates = None # Можно обновить, если нужно
+                        logger.warning(f"Panel '{p_data['id_panel']}' already exists in primary DB for Hub '{id_hub}', updating if necessary.")
+                        panel_obj.type = p_data['type']
+                        panel_obj.coordinates = p_data['coordinates']
                         panel_obj.save()
 
             logger.info(f"Hub '{id_hub}' and associated panels successfully mirrored to primary DB.")
-            return redirect('hub_list') # Перенаправляем на список хабов после успешного создания
+            return redirect('hub_list')
 
+        except IntegrityError as e:
+            logger.exception(f"Primary DB write failed due to data integrity for hub '{id_hub}': {e}")
+            form.add_error(None, f"Ошибка целостности данных в основной БД. Возможно, панель с таким именем уже существует для этого хаба: {e}")
+            return render(request, self.template_name, {'form': form})
         except Exception as e:
-            logger.exception(f"Primary DB mirror failed for hub '{id_hub}': {e}")
-            # Внимание: если сюда попали, вторичная БД уже содержит данные.
-            # Возможно, потребуется логика для отката или ручного вмешательства.
-            form.add_error(None, f"Ошибка при зеркалировании в основную БД: {e}")
+            logger.exception(f"Unexpected error during primary DB mirror for hub '{id_hub}': {e}")
+            form.add_error(None, f"Неожиданная ошибка при зеркалировании в основную БД: {e}")
             return render(request, self.template_name, {'form': form})
 
 
 @method_decorator(staff_member_required, name='dispatch')
 class HubListView(View):
-    """
-    Представление для отображения списка всех хабов.
-    """
     template_name = 'hub_list.html'
 
     def get(self, request):
-        hubs = Hub.objects.all().order_by('id_hub') # Получаем все хабы из основной БД
+        hubs = Hub.objects.all().order_by('id_hub')
         return render(request, self.template_name, {'hubs': hubs})
 
 
 @method_decorator(staff_member_required, name='dispatch')
 class HubUpdateView(View):
-    """
-    Представление для редактирования существующего хаба.
-    Использует id_hub в качестве первичного ключа для поиска.
-    """
-    template_name = 'hub_edit.html' # Мы создадим этот шаблон, он будет похож на create_hub.html
+    template_name = 'hub_edit.html'
     secondary_alias = 'solar_panel_db'
 
     def get(self, request, pk):
-        # Получаем объект хаба из основной БД по pk (id_hub)
         hub = get_object_or_404(Hub, pk=pk)
-        # Инициализируем форму данными из объекта хаба
-        # panel_count и panel_prefix не передаются, так как они не редактируются
+        
         form = HubForm(initial={
             'id_hub': hub.id_hub,
             'ip_address': hub.ip_address,
             'port': hub.port,
-            # Исправлено: используем hub.panel_set вместо hub.panels
-            'panel_type': hub.panel_set.first().type if hub.panel_set.first() else None # Заполняем тип первой панели
-        }, instance=hub) # Передаем instance для валидации id_hub
+        }, instance=hub)
 
         return render(request, self.template_name, {'form': form, 'hub': hub})
 
     def post(self, request, pk):
-        hub = get_object_or_404(Hub, pk=pk)
-        form = HubForm(request.POST, instance=hub) # Передаем instance для валидации и обновления
+        hub_obj = get_object_or_404(Hub, pk=pk)
+        form = HubForm(request.POST, instance=hub_obj)
+        
+        panel_errors = []
+        panels_data = []
 
         if not form.is_valid():
-            return render(request, self.template_name, {'form': form, 'hub': hub})
+            return render(request, self.template_name, {'form': form, 'hub': hub_obj})
 
-        # Получаем данные, которые разрешено редактировать
         new_id_hub = form.cleaned_data['id_hub']
         new_ip = form.cleaned_data['ip_address']
         new_port = form.cleaned_data['port']
-        new_panel_type = form.cleaned_data['panel_type']
 
-        # --- Обновление во вторичной БД (прямые SQL запросы) ---
+        total_panels = int(request.POST.get('total_panels', 0))
+        for i in range(total_panels):
+            panel_prefix = f'panel-{i}-'
+            panel_id = request.POST.get(panel_prefix + 'id_panel')
+            coordinates = request.POST.get(panel_prefix + 'coordinates')
+            panel_type = request.POST.get(panel_prefix + 'type')
+
+            panel_data_for_form = {
+                'id_panel': panel_id,
+                'coordinates': coordinates,
+                'type': panel_type,
+            }
+            panel_form = PanelInlineForm(panel_data_for_form)
+
+            if panel_form.is_valid():
+                panels_data.append(panel_form.cleaned_data)
+            else:
+                for field, errors in panel_form.errors.items():
+                    for error in errors:
+                        panel_errors.append(f"Панель #{i+1} ({panel_data_for_form.get('id_panel', 'N/A')}) - {panel_form.fields[field].label}: {error}")
+        
+        if panel_errors:
+            form.add_error(None, "Обнаружены ошибки в данных солнечных панелей:")
+            for error_msg in panel_errors:
+                form.add_error(None, error_msg)
+            return render(request, self.template_name, {'form': form, 'hub': hub_obj})
+
+        existing_panels = list(hub_obj.panel_set.all())
+        existing_panels_map = {p.id_panel: p for p in existing_panels}
+        
+        submitted_panel_ids = {p_data['id_panel'] for p_data in panels_data}
+
+        panels_to_create = []
+        panels_to_update = []
+        panels_to_delete_ids = []
+
+        for p_data in panels_data:
+            panel_id = p_data['id_panel']
+            if panel_id in existing_panels_map:
+                existing_panel = existing_panels_map[panel_id]
+                if (existing_panel.coordinates != p_data['coordinates'] or
+                    existing_panel.type != p_data['type']):
+                    panels_to_update.append((existing_panel, p_data))
+            else:
+                panels_to_create.append(p_data)
+
+        for existing_panel_obj in existing_panels:
+            if existing_panel_obj.id_panel not in submitted_panel_ids:
+                panels_to_delete_ids.append(existing_panel_obj.id_panel)
+
         try:
             with transaction.atomic(using=self.secondary_alias):
                 conn = connections[self.secondary_alias]
                 with conn.cursor() as cursor:
-                    # Обновление хаба во вторичной БД
                     cursor.execute(
                         """
                         UPDATE hub
                         SET ip_address = %s, port = %s, id_hub = %s
                         WHERE id_hub = %s
-                        """, [new_ip, new_port, new_id_hub, hub.id_hub] # Старый id_hub для WHERE, новый для SET
+                        """, [new_ip, new_port, new_id_hub, hub_obj.id_hub]
                     )
-                    # Если id_hub изменился, нужно также обновить id_hub в связанных панелях во вторичной БД
-                    if new_id_hub != hub.id_hub:
+                    if new_id_hub != hub_obj.id_hub:
                         cursor.execute(
                             """
                             UPDATE id_panel
                             SET id_hub = %s
                             WHERE id_hub = %s
-                            """, [new_id_hub, hub.id_hub]
+                            """, [new_id_hub, hub_obj.id_hub]
                         )
-                    # Обновление типа всех панелей, связанных с этим хабом, во вторичной БД
-                    # (предполагаем, что тип панели одинаков для всех панелей одного хаба)
-                    cursor.execute(
-                        """
-                        UPDATE id_panel
-                        SET type = %s
-                        WHERE id_hub = %s
-                        """, [new_panel_type, new_id_hub]
-                    )
+                    
+                    if panels_to_delete_ids:
+                        placeholders = ','.join(['%s'] * len(panels_to_delete_ids))
+                        cursor.execute(
+                            f"""
+                            DELETE FROM panel_data
+                            WHERE id_hub = %s AND id_panel IN ({placeholders})
+                            """, [new_id_hub, *panels_to_delete_ids]
+                        )
+                        cursor.execute(
+                            f"""
+                            DELETE FROM id_panel
+                            WHERE id_hub = %s AND id_panel IN ({placeholders})
+                            """, [new_id_hub, *panels_to_delete_ids]
+                        )
+                        logger.info(f"Deleted panels {panels_to_delete_ids} from secondary DB for hub '{new_id_hub}'.")
 
-            logger.info(f"Hub '{hub.id_hub}' (now '{new_id_hub}') successfully updated in secondary DB.")
-        except (ProgrammingError, OperationalError) as e:
-            logger.exception(f"Secondary DB update failed for hub '{hub.id_hub}': {e}")
-            form.add_error(None, f"Ошибка при обновлении во вторичной БД: {e}")
-            return render(request, self.template_name, {'form': form, 'hub': hub})
+                    for p_data in panels_to_create:
+                        cursor.execute(
+                            """
+                            INSERT INTO id_panel (id_panel, type, id_hub)
+                            VALUES (%s, %s, %s)
+                            """, [p_data['id_panel'], p_data['type'], new_id_hub]
+                        )
+                        logger.info(f"Added new panel '{p_data['id_panel']}' to secondary DB for hub '{new_id_hub}'.")
+
+                    for existing_panel, p_data in panels_to_update:
+                        cursor.execute(
+                            """
+                            UPDATE id_panel
+                            SET type = %s
+                            WHERE id_panel = %s AND id_hub = %s
+                            """, [p_data['type'], p_data['id_panel'], new_id_hub]
+                        )
+                        logger.info(f"Updated panel '{p_data['id_panel']}' in secondary DB for hub '{new_id_hub}'.")
+            
+            logger.info(f"Hub '{hub_obj.id_hub}' (now '{new_id_hub}') and associated panels successfully updated in secondary DB.")
+        except (ProgrammingError, OperationalError, IntegrityError) as e:
+            logger.exception(f"Secondary DB update failed for hub '{hub_obj.id_hub}': {e}")
+            form.add_error(None, f"Ошибка при обновлении во вторичную БД: {e}. Возможно, вы пытаетесь добавить панель с уже существующим именем в этот хаб.")
+            return render(request, self.template_name, {'form': form, 'hub': hub_obj})
         except Exception as e:
-            logger.exception(f"Unexpected error during secondary DB update for hub '{hub.id_hub}': {e}")
+            logger.exception(f"Unexpected error during secondary DB update for hub '{hub_obj.id_hub}': {e}")
             form.add_error(None, f"Неожиданная ошибка при обновлении во вторичную БД: {e}")
-            return render(request, self.template_name, {'form': form, 'hub': hub})
+            return render(request, self.template_name, {'form': form, 'hub': hub_obj})
 
 
-        # --- Обновление в основной БД (Django ORM) ---
         try:
             with transaction.atomic():
-                # Обновляем сам объект хаба в основной БД
-                hub.id_hub = new_id_hub # Обновляем PK, если он изменился
-                hub.ip_address = new_ip
-                hub.port = new_port
-                hub.save()
-                logger.info(f"Hub '{hub.id_hub}' successfully updated in primary DB.")
+                hub_obj.id_hub = new_id_hub
+                hub_obj.ip_address = new_ip
+                hub_obj.port = new_port
+                hub_obj.save()
+                logger.info(f"Hub '{hub_obj.id_hub}' successfully updated in primary DB.")
 
-                # Обновляем тип всех связанных панелей в основной БД
-                # (предполагаем, что тип панели одинаков для всех панелей одного хаба)
-                # Исправлено: используем hub.panel_set вместо hub.panels
-                hub.panel_set.update(type=new_panel_type)
-                logger.info(f"Panels for Hub '{hub.id_hub}' successfully updated in primary DB.")
+                if panels_to_delete_ids:
+                    Panel.objects.filter(hub=hub_obj, id_panel__in=panels_to_delete_ids).delete()
+                    logger.info(f"Deleted panels {panels_to_delete_ids} from primary DB for hub '{new_id_hub}'.")
 
-            return redirect('hub_list') # Перенаправляем на список хабов после успешного обновления
+                for p_data in panels_to_create:
+                    Panel.objects.create(
+                        hub=hub_obj,
+                        id_panel=p_data['id_panel'],
+                        coordinates=p_data['coordinates'],
+                        type=p_data['type']
+                    )
+                    logger.info(f"Created new panel '{p_data['id_panel']}' in primary DB for hub '{new_id_hub}'.")
 
+                for existing_panel, p_data in panels_to_update:
+                    existing_panel.coordinates = p_data['coordinates']
+                    existing_panel.type = p_data['type']
+                    existing_panel.save()
+                    logger.info(f"Updated panel '{p_data['id_panel']}' in primary DB for hub '{new_id_hub}'.")
+
+            return redirect('hub_list')
+
+        except IntegrityError as e:
+            logger.exception(f"Primary DB update failed due to data integrity for hub '{hub_obj.id_hub}': {e}")
+            form.add_error(None, f"Ошибка целостности данных в основной БД. Возможно, панель с таким именем уже существует для этого хаба: {e}")
+            return render(request, self.template_name, {'form': form, 'hub': hub_obj})
         except Exception as e:
-            logger.exception(f"Primary DB update mirror failed for hub '{hub.id_hub}': {e}")
+            logger.exception(f"Primary DB update mirror failed for hub '{hub_obj.id_hub}': {e}")
             form.add_error(None, f"Ошибка при зеркалировании обновления в основную БД: {e}")
-            return render(request, self.template_name, {'form': form, 'hub': hub})
+            return render(request, self.template_name, {'form': form, 'hub': hub_obj})
 
 
 @method_decorator(staff_member_required, name='dispatch')
 class HubDeleteView(View):
-    """
-    Представление для удаления хаба.
-    Отображает страницу подтверждения и выполняет удаление из обеих баз данных.
-    """
-    template_name = 'hub_confirm_delete.html' # Новый шаблон для подтверждения удаления
+    template_name = 'hub_confirm_delete.html'
     secondary_alias = 'solar_panel_db'
 
     def get(self, request, pk):
@@ -1023,21 +1128,77 @@ class HubDeleteView(View):
     def post(self, request, pk):
         hub = get_object_or_404(Hub, pk=pk)
 
+        # --- Архивирование данных панелей перед удалением ---
+        try:
+            if not os.path.exists(ARCHIVE_DIR):
+                os.makedirs(ARCHIVE_DIR)
+
+            archive_filename = f"hub_{hub.id_hub}_panel_data_archive_{datetime.now().strftime('%Y%m%d%H%M%S')}.csv"
+            archive_filepath = os.path.join(ARCHIVE_DIR, archive_filename)
+
+            with transaction.atomic(using=self.secondary_alias):
+                conn = connections[self.secondary_alias]
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        SELECT
+                            pd.id_panel_data,
+                            pd.value,
+                            pd.timestamp,
+                            ip.id_panel,
+                            ip.type AS panel_type,
+                            h.id_hub,
+                            h.ip_address,
+                            h.port
+                        FROM
+                            panel_data pd
+                        JOIN
+                            id_panel ip ON pd.id_panel = ip.id_panel AND pd.id_hub = ip.id_hub
+                        JOIN
+                            hub h ON ip.id_hub = h.id_hub
+                        WHERE
+                            h.id_hub = %s;
+                        """, [hub.id_hub]
+                    )
+                    panel_data_records = cursor.fetchall()
+
+            if panel_data_records:
+                with open(archive_filepath, 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.writer(f)
+                    writer.writerow(['id_panel_data', 'value', 'timestamp', 'id_panel', 'panel_type', 'id_hub', 'ip_address', 'port'])
+                    writer.writerows(panel_data_records)
+                logger.info(f"Archived {len(panel_data_records)} panel data records for hub '{hub.id_hub}' to '{archive_filepath}'.")
+            else:
+                logger.info(f"No panel data records to archive for hub '{hub.id_hub}'.")
+
+        except (ProgrammingError, OperationalError) as e:
+            logger.exception(f"Error archiving panel data for hub '{hub.id_hub}': {e}. Proceeding with deletion.")
+        except Exception as e:
+            logger.exception(f"Unexpected error during panel data archiving for hub '{hub.id_hub}': {e}. Proceeding with deletion.")
+
         # --- Удаление во вторичной БД (прямые SQL запросы) ---
         try:
             with transaction.atomic(using=self.secondary_alias):
                 conn = connections[self.secondary_alias]
                 with conn.cursor() as cursor:
-                    # Сначала удаляем связанные записи из panel_data
                     cursor.execute(
                         """
-                        DELETE FROM panel_data
-                        WHERE id_hub = %s AND id_panel IN (SELECT id_panel FROM id_panel WHERE id_hub = %s)
-                        """, [hub.id_hub, hub.id_hub]
+                        SELECT id_panel FROM id_panel
+                        WHERE id_hub = %s
+                        """, [hub.id_hub]
                     )
-                    logger.info(f"Deleted PanelData for Hub '{hub.id_hub}' from secondary DB.")
+                    panel_ids_to_delete = [row[0] for row in cursor.fetchall()]
 
-                    # Затем удаляем связанные панели из id_panel
+                    if panel_ids_to_delete:
+                        placeholders = ','.join(['%s'] * len(panel_ids_to_delete))
+                        cursor.execute(
+                            f"""
+                            DELETE FROM panel_data
+                            WHERE id_hub = %s AND id_panel IN ({placeholders})
+                            """, [hub.id_hub, *panel_ids_to_delete]
+                        )
+                        logger.info(f"Deleted PanelData for {len(panel_ids_to_delete)} panels of Hub '{hub.id_hub}' from secondary DB.")
+
                     cursor.execute(
                         """
                         DELETE FROM id_panel
@@ -1046,7 +1207,6 @@ class HubDeleteView(View):
                     )
                     logger.info(f"Deleted Panels for Hub '{hub.id_hub}' from secondary DB.")
 
-                    # И только потом удаляем сам хаб из hub
                     cursor.execute(
                         """
                         DELETE FROM hub
@@ -1056,7 +1216,6 @@ class HubDeleteView(View):
                     logger.info(f"Hub '{hub.id_hub}' successfully deleted from secondary DB.")
         except (ProgrammingError, OperationalError) as e:
             logger.exception(f"Secondary DB deletion failed for hub '{hub.id_hub}': {e}")
-            # Возвращаем пользователя на страницу подтверждения с ошибкой
             return render(request, self.template_name, {'hub': hub, 'error': f"Ошибка при удалении из вторичной БД: {e}"})
         except Exception as e:
             logger.exception(f"Unexpected error during secondary DB deletion for hub '{hub.id_hub}': {e}")
@@ -1065,12 +1224,18 @@ class HubDeleteView(View):
         # --- Удаление в основной БД (Django ORM) ---
         try:
             with transaction.atomic():
-                hub.delete() # Удаление хаба из основной БД (CASCADE удалит связанные панели)
+                # Проверяем, есть ли панели, связанные с этим хабом
+                panels_count = hub.panel_set.count()
+                if panels_count > 0:
+                    panel_ids = list(hub.panel_set.values_list('id_panel', flat=True))
+                    hub.panel_set.all().delete()
+                    logger.info(f"Deleted {panels_count} panels ({panel_ids}) for Hub '{hub.id_hub}' from primary DB before hub deletion.")
+                else:
+                    logger.info(f"No panels found for Hub '{hub.id_hub}' in primary DB to delete before hub deletion.")
+                
+                hub.delete()
             logger.info(f"Hub '{hub.id_hub}' successfully deleted from primary DB.")
-            return redirect('hub_list') # Перенаправляем на список хабов после успешного удаления
+            return redirect('hub_list')
         except Exception as e:
             logger.exception(f"Primary DB deletion mirror failed for hub '{hub.id_hub}': {e}")
-            # Внимание: если сюда попали, вторичная БД уже удалила данные.
-            # Возможно, потребуется логика для отката или ручного вмешательства.
             return render(request, self.template_name, {'hub': hub, 'error': f"Ошибка при зеркалировании удаления в основную БД: {e}"})
-

@@ -173,7 +173,7 @@ STATICFILES_DIRS = [
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'login'
-
+LOGIN_REQUIRED_BY_DEFAULT = False
 
 LOGGING = {
     'version': 1,

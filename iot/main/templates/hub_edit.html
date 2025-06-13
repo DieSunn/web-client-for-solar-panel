@@ -2,27 +2,26 @@
 {% load static %}
 
 {% block content %}
-<!-- Используем те же стили, что и для create_hub_form.css -->
 <style>
     /* static/css/create_hub_form.css (полностью переписанный) */
 
     /* --- Светлая тема --- */
 
     .form-container {
-        max-width: 500px;
+        max-width: 650px; /* Увеличим ширину для панелей и кнопок карты */
         margin: 50px auto;
         padding: 30px 35px;
-        background-color: #ffffff; /* был --sidebar-color */
+        background-color: #ffffff;
         border-radius: 8px;
         box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
-        color: #707070; /* был --text-color */
+        color: #707070;
     }
 
     .form-container h2 {
         text-align: center;
         margin-bottom: 30px;
         font-size: 26px;
-        color: #707070; /* был --text-color */
+        color: #707070;
         font-weight: 600;
     }
 
@@ -35,20 +34,21 @@
         margin-bottom: 8px;
         font-weight: 500;
         font-size: 14px;
-        color: #707070; /* был --text-color */
+        color: #707070;
     }
 
     .form-container form input[type="text"],
     .form-container form input[type="url"],
-    .form-container form textarea {
+    .form-container form textarea,
+    .form-container form select {
         width: 100%;
         padding: 12px 15px;
-        border: 1px solid #dddddd; /* был --toggle-color */
+        border: 1px solid #dddddd;
         border-radius: 6px;
         box-sizing: border-box;
         font-size: 16px;
-        background-color: #eae8f6; /* был --body-color */
-        color: #707070; /* был --text-color */
+        background-color: #eae8f6;
+        color: #707070;
         transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
     }
 
@@ -59,16 +59,17 @@
 
     .form-container form input[type="text"]:focus,
     .form-container form input[type="url"]:focus,
-    .form-container form textarea:focus {
-        border-color: #695cfe; /* был --primary-color */
+    .form-container form textarea:focus,
+    .form-container form select:focus {
+        border-color: #695cfe;
         outline: none;
         box-shadow: 0 0 0 3px rgba(105, 92, 254, 0.15);
     }
 
-    .form-container button[type="submit"], .form-container .btn-back {
+    .form-container button[type="submit"] {
         width: 100%;
         padding: 12px 15px;
-        background-color: #695cfe; /* был --primary-color */
+        background-color: #695cfe;
         color: #ffffff;
         border: none;
         border-radius: 6px;
@@ -77,13 +78,10 @@
         cursor: pointer;
         transition: background-color 0.2s ease-in-out;
         margin-top: 10px;
-        text-align: center;
-        text-decoration: none; /* Для ссылки */
-        display: block; /* Для ссылки */
     }
 
-    .form-container button[type="submit"]:hover, .form-container .btn-back:hover {
-        background-color: #5848d3; /* Затемненный #695cfe */
+    .form-container button[type="submit"]:hover {
+        background-color: #5848d3;
     }
 
     .form-container ul.errors {
@@ -106,43 +104,258 @@
         margin-bottom: 0;
     }
 
-    /* --- Темная тема (применяется, если на body есть класс .dark) --- */
+    .form-container .link-to-list {
+        display: block;
+        text-align: center;
+        margin-top: 20px;
+        padding: 10px 15px;
+        background-color: #4CAF50;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+        transition: background-color 0.3s ease;
+    }
+
+    .form-container .link-to-list:hover {
+        background-color: #45a049;
+    }
+
+    /* --- Стили для динамических панелей --- */
+    .panel-section {
+        border: 1px solid #ddd;
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 30px;
+        background-color: #f9f9f9;
+    }
+
+    .panel-section h3 {
+        margin-top: 0;
+        margin-bottom: 20px;
+        font-size: 20px;
+        color: #707070;
+    }
+
+    .panel-item {
+        border: 1px dashed #cccccc;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 6px;
+        background-color: #ffffff;
+    }
+
+    .panel-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .panel-item .panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .panel-item .panel-header h4 {
+        margin: 0;
+        font-size: 16px;
+        color: #695cfe;
+    }
+
+    .panel-item .remove-panel-btn {
+        background-color: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 5px 10px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background-color 0.2s ease-in-out;
+    }
+
+    .panel-item .remove-panel-btn:hover {
+        background-color: #c82333;
+    }
+
+    .panel-controls {
+        text-align: center;
+        margin-top: 20px;
+    }
+
+    .panel-controls button {
+        background-color: #28a745;
+        color: white;
+        border: none;
+        border-radius: 50%; /* Круглые кнопки */
+        width: 35px;
+        height: 35px;
+        font-size: 24px;
+        line-height: 1;
+        cursor: pointer;
+        transition: background-color 0.2s ease-in-out;
+        margin: 0 5px;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .panel-controls button:hover {
+        background-color: #218838;
+    }
+
+    .panel-controls button:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+    }
+
+    /* Стиль для кнопки выбора координат */
+    .coordinates-input-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .coordinates-input-group input {
+        flex-grow: 1;
+    }
+    .select-coords-btn {
+        background-color: #007bff; /* Синий цвет */
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 10px 15px;
+        cursor: pointer;
+        font-size: 14px;
+        white-space: nowrap; /* Чтобы текст кнопки не переносился */
+        transition: background-color 0.2s ease-in-out;
+    }
+    .select-coords-btn:hover {
+        background-color: #0056b3;
+    }
+
+    /* Стили для модального окна */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0,0,0,0.4);
+        justify-content: center;
+        align-items: center;
+    }
+    .modal-content {
+        background-color: #fefefe;
+        margin: auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 90%;
+        max-width: 800px;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        height: 80%; /* Сделаем модалку выше */
+    }
+    .modal-content h3 {
+        margin-top: 0;
+        margin-bottom: 15px;
+        font-size: 20px;
+        color: #707070;
+    }
+    .close-button {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        position: absolute;
+        top: 10px;
+        right: 20px;
+        cursor: pointer;
+    }
+    .close-button:hover,
+    .close-button:focus {
+        color: black;
+        text-decoration: none;
+        cursor: pointer;
+    }
+    #map-modal-map {
+        height: 100%; /* Карта занимает всю высоту модалки */
+        width: 100%;
+        border-radius: 6px;
+        flex-grow: 1; /* Позволяет карте занимать доступное пространство */
+    }
+    .map-controls {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 15px;
+    }
+    .map-controls button {
+        padding: 8px 15px;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        font-weight: 500;
+        transition: background-color 0.2s ease-in-out;
+    }
+    .map-controls .confirm-map-selection {
+        background-color: #28a745; /* Зеленый */
+        color: white;
+    }
+    .map-controls .confirm-map-selection:hover {
+        background-color: #218838;
+    }
+    .map-controls .cancel-map-selection {
+        background-color: #6c757d; /* Серый */
+        color: white;
+    }
+    .map-controls .cancel-map-selection:hover {
+        background-color: #5a6268;
+    }
+
+
+    /* --- Темная тема --- */
 
     body.dark .form-container {
-        background-color: #242526; /* был --sidebar-color (dark) */
+        background-color: #242526;
         box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
-        color: #cccccc; /* был --text-color (dark) */
+        color: #cccccc;
     }
 
     body.dark .form-container h2 {
-        color: #cccccc; /* был --text-color (dark) */
+        color: #cccccc;
     }
 
     body.dark .form-container form label {
-        color: #cccccc; /* был --text-color (dark) */
+        color: #cccccc;
     }
 
     body.dark .form-container form input[type="text"],
     body.dark .form-container form input[type="url"],
-    body.dark .form-container form textarea {
-        border: 1px solid #4b545c; /* мой вариант для лучшего контраста */
-        background-color: #2c3034; /* мой вариант для лучшего контраста */
-        color: #cccccc; /* был --text-color (dark) */
+    body.dark .form-container form textarea,
+    body.dark .form-container form select {
+        border: 1px solid #4b545c;
+        background-color: #2c3034;
+        color: #cccccc;
     }
 
     body.dark .form-container form input[type="text"]:focus,
     body.dark .form-container form input[type="url"]:focus,
-    body.dark .form-container form textarea:focus {
-        border-color: #695cfe; /* Яркий акцент для фокуса */
+    body.dark .form-container form textarea:focus,
+    body.dark .form-container form select:focus {
+        border-color: #695cfe;
         box-shadow: 0 0 0 3px rgba(105, 92, 254, 0.25);
     }
 
-    body.dark .form-container button[type="submit"], body.dark .form-container .btn-back {
-        background-color: #695cfe; /* Яркий цвет кнопки */
+    body.dark .form-container button[type="submit"] {
+        background-color: #695cfe;
         color: #ffffff;
     }
 
-    body.dark .form-container button[type="submit"]:hover, body.dark .form-container .btn-back:hover {
+    body.dark .form-container button[type="submit"]:hover {
         background-color: #5848d3;
     }
 
@@ -151,20 +364,96 @@
         border-color: #8c4a4a;
         color: #f5c6cb;
     }
+
+    body.dark .form-container .link-to-list {
+        background-color: #28a745;
+    }
+
+    body.dark .form-container .link-to-list:hover {
+        background-color: #218838;
+    }
+
+    body.dark .panel-section {
+        background-color: #2a2c2e;
+        border-color: #4b545c;
+    }
+
+    body.dark .panel-section h3 {
+        color: #cccccc;
+    }
+
+    body.dark .panel-item {
+        background-color: #333639;
+        border-color: #555555;
+    }
+
+    body.dark .panel-item .panel-header h4 {
+        color: #8c8c8c;
+    }
+
+    body.dark .panel-item .remove-panel-btn {
+        background-color: #dc3545;
+    }
+
+    body.dark .panel-item .remove-panel-btn:hover {
+        background-color: #c82333;
+    }
+
+    body.dark .panel-controls button {
+        background-color: #28a745;
+    }
+
+    body.dark .panel-controls button:hover {
+        background-color: #218838;
+    }
+
+    body.dark .panel-controls button:disabled {
+        background-color: #555555;
+    }
+
+    body.dark .select-coords-btn {
+        background-color: #007bff;
+    }
+    body.dark .select-coords-btn:hover {
+        background-color: #0056b3;
+    }
+
+    body.dark .modal-content {
+        background-color: #242526;
+        border-color: #4b545c;
+    }
+    body.dark .modal-content h3 {
+        color: #cccccc;
+    }
+    body.dark .close-button {
+        color: #ccc;
+    }
+    body.dark .close-button:hover,
+    body.dark .close-button:focus {
+        color: white;
+    }
+    body.dark .map-controls .confirm-map-selection {
+        background-color: #28a745;
+    }
+    body.dark .map-controls .confirm-map-selection:hover {
+        background-color: #218838;
+    }
+    body.dark .map-controls .cancel-map-selection {
+        background-color: #6c757d;
+    }
+    body.dark .map-controls .cancel-map-selection:hover {
+        background-color: #5a6268;
+    }
+
 </style>
 <div class="form-container">
-    <h2>Редактировать хаб: {{ hub.id_hub }}</h2>
-    <form method="post" class="hub-form">
+    <h2>Редактировать хаб: {{ hub.id_hub }}</h2> {# Отображаем текущий ID хаба #}
+    <form method="post" class="hub-form" id="editHubForm">
         {% csrf_token %}
-        <!-- Передаем id_hub как скрытое поле, если его нельзя менять,
-             иначе просто выводим как обычное поле формы.
-             В форме HubForm мы сделали его не-readonly для возможности изменения.
-        -->
+        <!-- Поля для хаба -->
         {% for field in form %}
-            {% if field.name == 'panel_count' or field.name == 'panel_prefix' %}
-                <!-- Эти поля скрыты для редактирования, но их все равно нужно отобразить,
-                     чтобы они отправились с формой (даже если пустые или по умолчанию) -->
-                {{ field }}
+            {% if field.name == 'panel_count' or field.name == 'panel_prefix' or field.name == 'panel_type' %}
+                <div style="display:none;">{{ field }}</div>
             {% else %}
                 <p>
                     {{ field.label_tag }}
@@ -179,8 +468,46 @@
             {% endif %}
         {% endfor %}
 
+        <!-- Секция для динамических солнечных панелей -->
+        <div class="panel-section">
+            <h3>Солнечные панели (макс. 10)</h3>
+            <div id="panels-container">
+                {# Рендерим существующие панели из базы данных #}
+                {% for panel in hub.panel_set.all %}
+                <div class="panel-item" data-prefix="{{ forloop.counter0 }}">
+                    <div class="panel-header">
+                        <h4 class="panel-title">Панель #<span class="panel-number">{{ forloop.counter }}</span></h4>
+                        <button type="button" class="remove-panel-btn">Удалить</button>
+                    </div>
+                    <p>
+                        <label for="panel-{{ forloop.counter0 }}-id_panel">Имя панели:</label>
+                        <input type="text" name="panel-{{ forloop.counter0 }}-id_panel" value="{{ panel.id_panel }}" required>
+                    </p>
+                    <p>
+                        <label for="panel-{{ forloop.counter0 }}-coordinates">Координаты (lat,lng):</label>
+                        <div class="coordinates-input-group">
+                            <input type="text" name="panel-{{ forloop.counter0 }}-coordinates" value="{{ panel.coordinates }}" placeholder="Например: 40.714, -74.005" pattern="^(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)$" title="Введите координаты в формате: широта, долгота" required>
+                            <button type="button" class="select-coords-btn">Выбрать на карте</button>
+                        </div>
+                    </p>
+                    <p>
+                        <label for="panel-{{ forloop.counter0 }}-type">Тип панели:</label>
+                        <select name="panel-{{ forloop.counter0 }}-type" required>
+                            <option value="static" {% if panel.type == 'static' %}selected{% endif %}>Статическая</option>
+                            <option value="rotary" {% if panel.type == 'rotary' %}selected{% endif %}>Вращающаяся</option>
+                        </select>
+                    </p>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="panel-controls">
+                <button type="button" id="add-panel-btn">+</button>
+                <button type="button" id="remove-panel-btn" disabled>-</button>
+            </div>
+            <input type="hidden" name="total_panels" id="total-panels-input" value="{{ hub.panel_set.count }}"> {# Предзаполняем количество существующих панелей #}
+        </div>
+
         <button type="submit">Сохранить изменения</button>
-        <a href="{% url 'hub_list' %}" class="btn-back">Отмена</a>
     </form>
 
     {% if form.errors %}
@@ -195,5 +522,264 @@
             {% endfor %}
         </ul>
     {% endif %}
+    <a href="{% url 'hub_list' %}" class="link-to-list">Вернуться к списку хабов</a>
 </div>
+
+<!-- Шаблон для одной солнечной панели (скрытый) -->
+<template id="panel-template">
+    <div class="panel-item">
+        <div class="panel-header">
+            <h4 class="panel-title">Панель #<span class="panel-number">1</span></h4>
+            <button type="button" class="remove-panel-btn">Удалить</button>
+        </div>
+        <p>
+            <label for="id_panel">Имя панели:</label>
+            <input type="text" name="panel-__prefix__-id_panel" required>
+        </p>
+        <p>
+            <label for="coordinates">Координаты (lat,lng):</label>
+            <div class="coordinates-input-group">
+                <input type="text" name="panel-__prefix__-coordinates" placeholder="Например: 40.714, -74.005" pattern="^(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)$" title="Введите координаты в формате: широта, долгота" required>
+                <button type="button" class="select-coords-btn">Выбрать на карте</button>
+            </div>
+        </p>
+        <p>
+            <label for="type">Тип панели:</label>
+            <select name="panel-__prefix__-type" required>
+                <option value="static">Статическая</option>
+                <option value="rotary">Вращающаяся</option>
+            </select>
+        </p>
+    </div>
+</template>
+
+<!-- Модальное окно для выбора координат на карте -->
+<div id="map-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-button">&times;</span>
+        <h3>Выберите координаты на карте</h3>
+        <div id="map-modal-map"></div>
+        <div class="map-controls">
+            <button type="button" class="confirm-map-selection">Подтвердить</button>
+            <button type="button" class="cancel-map-selection">Отмена</button>
+        </div>
+    </div>
+</div>
+
+<!-- Leaflet CSS и JS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const panelsContainer = document.getElementById('panels-container');
+        const addPanelBtn = document.getElementById('add-panel-btn');
+        const removePanelBtn = document.getElementById('remove-panel-btn');
+        const totalPanelsInput = document.getElementById('total-panels-input');
+        const panelTemplate = document.getElementById('panel-template');
+
+        let panelCount = parseInt(totalPanelsInput.value) || 0; // Инициализируем из скрытого поля
+        const MAX_PANELS = 10;
+
+        // --- Leaflet Map Logic ---
+        const mapModal = document.getElementById('map-modal');
+        const mapModalMap = document.getElementById('map-modal-map');
+        const mapCloseButton = mapModal.querySelector('.close-button');
+        const confirmMapSelectionBtn = mapModal.querySelector('.confirm-map-selection');
+        const cancelMapSelectionBtn = mapModal.querySelector('.cancel-map-selection');
+
+        let map = null;
+        let mapMarker = null;
+        let currentCoordInput = null; // Ссылка на input field, для которого открыта карта
+
+        function initMap() {
+            if (map) {
+                map.remove(); // Удаляем предыдущий экземпляр карты, если он был
+            }
+            map = L.map('map-modal-map', { attributionControl: false }).setView([52.0137, 113.5008], 13); // Координаты Палермо
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: ''
+            }).addTo(map);
+
+            // Обработчик клика по карте
+            map.on('click', function(e) {
+                if (mapMarker) {
+                    map.removeLayer(mapMarker);
+                }
+                mapMarker = L.marker(e.latlng).addTo(map);
+                mapMarker.bindPopup(`<b>Выбрано:</b><br>${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`).openPopup();
+            });
+        }
+
+        // Открытие модального окна карты
+        function openMapModal(inputElement) {
+            currentCoordInput = inputElement;
+            mapModal.style.display = 'flex';
+            initMap();
+            setTimeout(() => {
+                 map.invalidateSize();
+                 const currentCoords = currentCoordInput.value;
+                 if (currentCoords) {
+                     const parts = currentCoords.split(',').map(s => parseFloat(s.trim()));
+                     if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+                         const latLng = L.latLng(parts[0], parts[1]);
+                         map.setView(latLng, 15);
+                         if (mapMarker) {
+                            map.removeLayer(mapMarker);
+                         }
+                         mapMarker = L.marker(latLng).addTo(map);
+                         mapMarker.bindPopup(`<b>Выбрано:</b><br>${latLng.lat.toFixed(5)}, ${latLng.lng.toFixed(5)}`).openPopup();
+                     }
+                 }
+            }, 100);
+        }
+
+        // Закрытие модального окна
+        function closeMapModal() {
+            mapModal.style.display = 'none';
+            if (mapMarker) {
+                map.removeLayer(mapMarker);
+                mapMarker = null;
+            }
+            currentCoordInput = null;
+        }
+
+        // Обработчик подтверждения выбора
+        confirmMapSelectionBtn.addEventListener('click', function() {
+            if (mapMarker && currentCoordInput) {
+                const latLng = mapMarker.getLatLng();
+                currentCoordInput.value = `${latLng.lat.toFixed(5)}, ${latLng.lng.toFixed(5)}`;
+            }
+            closeMapModal();
+        });
+
+        // Обработчик отмены выбора
+        cancelMapSelectionBtn.addEventListener('click', closeMapModal);
+        mapCloseButton.addEventListener('click', closeMapModal);
+
+        // Закрытие модального окна по клику вне его (на оверлей)
+        window.addEventListener('click', function(event) {
+            if (event.target == mapModal) {
+                closeMapModal();
+            }
+        });
+
+        // --- Dynamic Panels Logic ---
+
+        function updatePanelNumbers() {
+            const panels = panelsContainer.querySelectorAll('.panel-item');
+            panels.forEach((panel, index) => {
+                // Получаем текущий префикс, который может быть числом или строкой '__prefix__'
+                const oldPrefix = panel.dataset.prefix;
+                const newPrefix = index; // Новый префикс - это просто индекс
+
+                panel.dataset.prefix = newPrefix; // Обновляем data-prefix
+
+                panel.querySelector('.panel-number').textContent = index + 1;
+
+                // Обновляем атрибуты name и id для всех полей внутри панели
+                panel.querySelectorAll('[name*="panel-"], [id*="panel-"]').forEach(input => {
+                    // Используем регулярное выражение для замены только числового префикса
+                    // или '__prefix__', если это новый добавленный элемент.
+                    const nameAttr = input.getAttribute('name');
+                    const idAttr = input.getAttribute('id');
+
+                    if (nameAttr) {
+                        input.name = nameAttr.replace(/panel-(?:__prefix__|\d+)-/, `panel-${newPrefix}-`);
+                    }
+                    if (idAttr) {
+                        input.id = idAttr.replace(/panel-(?:__prefix__|\d+)-/, `panel-${newPrefix}-`);
+                    }
+                });
+
+                // Обновляем атрибут 'for' для лейблов
+                panel.querySelectorAll('label[for*="panel-"]').forEach(label => {
+                    const forAttr = label.getAttribute('for');
+                    if (forAttr) {
+                        label.setAttribute('for', forAttr.replace(/panel-(?:__prefix__|\d+)-/, `panel-${newPrefix}-`));
+                    }
+                });
+            });
+            totalPanelsInput.value = panels.length;
+            panelCount = panels.length; // Обновляем panelCount
+            updateButtonsState();
+        }
+
+        function addPanel() {
+            if (panelCount >= MAX_PANELS) {
+                alert(`Вы не можете добавить более ${MAX_PANELS} панелей.`);
+                return;
+            }
+
+            const newPanel = panelTemplate.content.cloneNode(true).firstElementChild;
+            const prefix = panelCount; // Используем текущий panelCount как префикс для новой панели
+            newPanel.dataset.prefix = prefix;
+
+            // Обновляем атрибуты name и id для новой панели
+            newPanel.querySelectorAll('[name*="__prefix__"], [id*="__prefix__"]').forEach(input => {
+                input.name = input.name.replace('__prefix__', prefix);
+                if (input.id) {
+                    input.id = input.id.replace('__prefix__', prefix);
+                }
+            });
+             // Обновляем атрибут 'for' для лейблов новой панели
+            newPanel.querySelectorAll('label[for*="__prefix__"]').forEach(label => {
+                label.setAttribute('for', label.getAttribute('for').replace('__prefix__', prefix));
+            });
+
+            newPanel.querySelector('.panel-number').textContent = panelCount + 1; // Номер для отображения
+            panelsContainer.appendChild(newPanel);
+            panelCount++; // Увеличиваем счетчик
+            updatePanelNumbers(); // Пересчитываем и упорядочиваем все панели
+
+            // Добавляем обработчик для новой кнопки "Выбрать на карте"
+            const selectCoordsBtn = newPanel.querySelector('.select-coords-btn');
+            const coordsInput = newPanel.querySelector('input[name*="-coordinates"]');
+            selectCoordsBtn.addEventListener('click', function() {
+                openMapModal(coordsInput);
+            });
+        }
+
+        // Обработчик удаления панели (делегированный)
+        panelsContainer.addEventListener('click', function(event) {
+            if (event.target.classList.contains('remove-panel-btn')) {
+                const panelToRemove = event.target.closest('.panel-item');
+                if (panelToRemove) {
+                    panelToRemove.remove();
+                    // panelCount уменьшается не здесь, а в updatePanelNumbers
+                    updatePanelNumbers(); // Обновляем номера после удаления
+                }
+            } else if (event.target.classList.contains('select-coords-btn')) {
+                const coordsInput = event.target.closest('.coordinates-input-group').querySelector('input[name*="-coordinates"]');
+                openMapModal(coordsInput);
+            }
+        });
+
+        function updateButtonsState() {
+            addPanelBtn.disabled = panelCount >= MAX_PANELS;
+            removePanelBtn.disabled = panelCount === 0;
+        }
+
+        // При загрузке страницы:
+        // 1. Привязываем обработчики для кнопок "Выбрать на карте" к существующим панелям
+        panelsContainer.querySelectorAll('.panel-item').forEach(panelItem => {
+            const selectCoordsBtn = panelItem.querySelector('.select-coords-btn');
+            const coordsInput = panelItem.querySelector('input[name*="-coordinates"]');
+            if (selectCoordsBtn && coordsInput) {
+                selectCoordsBtn.addEventListener('click', function() {
+                    openMapModal(coordsInput);
+                });
+            }
+        });
+        // 2. Убеждаемся, что totalPanelsInput корректен и обновляем состояние кнопок
+        updatePanelNumbers(); // Этот вызов также установит правильное значение panelCount и totalPanelsInput.value
+        updateButtonsState();
+
+
+        addPanelBtn.addEventListener('click', addPanel);
+        // removePanelBtn уже обрабатывается через делегирование в panelsContainer
+
+    });
+</script>
 {% endblock %}

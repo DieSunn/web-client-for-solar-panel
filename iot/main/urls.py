@@ -42,4 +42,5 @@ urlpatterns = [
     path('hubs/', HubListView.as_view(), name='hub_list'), # Новый маршрут для списка хабов
     path('hubs/<str:pk>/edit/', HubUpdateView.as_view(), name='hub_edit'), # Новый маршрут для редактирования
     path('hubs/<str:pk>/delete/', HubDeleteView.as_view(), name='hub_delete'), # Новый маршрут для удаления
+    path('guest-login/', views.guest_login_view, name='guest_login'),
 ]
