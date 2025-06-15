@@ -1,9 +1,10 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Управление панелью {{ panel.id_panel }}{% endblock %}
+{% block title %}Управление панелью {{ panel.id_panelМ}{% endblock %}
 
 {% block content %}
 <style>
+    /* Ваш существующий CSS */
     .panel-detail-container {
         padding: 20px;
         background: white;
@@ -80,7 +81,7 @@
         background-color: #5a6268;
     }
 
-     .warning-btn {
+    .warning-btn {
         background-color: #ffc107;
         color: #212529;
     }
@@ -89,7 +90,7 @@
         background-color: #e0a800;
     }
 
-     .success-btn {
+    .success-btn {
         background-color: #28a745;
         color: white;
     }
@@ -97,7 +98,15 @@
     .success-btn:hover {
         background-color: #218838;
     }
+    /* Добавим стиль для кнопки в состоянии "выключить" (красный цвет) */
+    .danger-btn {
+        background-color: #dc3545;
+        color: white;
+    }
 
+    .danger-btn:hover {
+        background-color: #c82333;
+    }
 
     .rotate-controls {
         margin-top: 10px;
@@ -155,7 +164,7 @@
             gap: 10px;
         }
 
-         .btn {
+        .btn {
             width: 100%; 
             justify-content: center;
         }
@@ -164,65 +173,67 @@
             width: calc(100% - 20px); 
         }
     }
-
 </style>
 
 <div class="panel-detail-container">
-    {# Display information about the current panel #}
     <div class="panel-info-section">
         <h2>Управление панелью: {{ panel.id_panel }}</h2>
-        <p>Хаб: {{ panel.hub.id_hub }}</p> {# Access hub ID via the related hub object #}
-        <p>Тип: {{ panel.type|default:"N/A" }}</p>
+        <p>Хаб: {{ panel.hub.id_hub }}</p>
+        <p>Тип: {{ panel.get_type_display }}</p>
         <p>Координаты: {{ panel.coordinates|default:"N/A" }}</p>
-        {# You might want to display current status or other data here if available in the Panel model or fetched separately #}
+
+        {% if panel.type == 'rotary' %}
+            {# Режим автоповорота отображается из поля 'status' последней записи PanelData #}
+            <p>Режим автоповорота: {{ latest_panel_data.get_status_display|default:"Неизвестно" }}</p>
+        {% endif %}
+        
+        {# Выводим общие данные о энергии и статусе из последней записи PanelData #}
+        <p>Вырабатываемая энергия: {{ latest_panel_data.generated_power|default:"N/A" }}</p>
+        <p>Потребляемая энергия: {{ latest_panel_data.consumed_power|default:"N/A" }}</p>
+        <p>Наклон по горизонтали: {{ latest_panel_data.horizontal_position }}</p>
+        <p>Наклон по вертикали: {{ latest_panel_data.vertical_position }}</p>
     </div>
 
-    <div class="control-section">
+   <div class="control-section">
         <h3>Отправить команды</h3>
 
         <div class="control-buttons">
-            {# Buttons for panel-specific commands #}
             <button class="btn primary-btn api-command-btn" data-command="SEND_DATA" data-hub-id="{{ panel.hub.id_hub }}" data-panel-id="{{ panel.id_panel }}">
-                 <i class='bx bx-send'></i> Отправить данные
+                <i class='bx bx-send'></i> Отправить данные
             </button>
-            <button class="btn secondary-btn api-command-btn" data-command="STATUS" data-hub-id="{{ panel.hub.id_hub }}" data-panel-id="{{ panel.id_panel }}">
-                 <i class='bx bx-info-circle'></i> Статус панели
-            </button>
-            <button class="btn secondary-btn api-command-btn" data-command="CHECK_STATUS" data-hub-id="{{ panel.hub.id_hub }}" data-panel-id="{{ panel.id_panel }}">
-                 <i class='bx bx-check-circle'></i> Проверить статус панели
-            </button>
-            <button class="btn warning-btn rotate-toggle-btn">
-                <i class='bx bx-rotate-right'></i> Повернуть
-            </button>
+
+            {% if panel.type == 'rotary' %}
+                <button class="btn warning-btn rotate-toggle-btn">
+                    <i class='bx bx-rotate-right'></i> Повернуть
+                </button>
+                
+                {# ИЗМЕНЕНИЕ 1: data-command теперь "AUTO_ROTATE" #}
+                <button class="btn api-command-btn" 
+                        data-command="AUTO_ROTATE" 
+                        data-hub-id="{{ panel.hub.id_hub }}" 
+                        data-panel-id="{{ panel.id_panel }}" 
+                        data-current-status="{{ latest_panel_data.status|default:'off' }}">
+                    <i class='bx bx-toggle-'></i>
+                    Автоповорот:
+                </button>
+            {% endif %}
         </div>
 
-         {# Rotation controls (initially hidden) #}
-        <div class="rotate-controls" style="display: none;">
-            <label for="vertical-{{ panel.id_panel }}">Вертикаль:</label> {# Use panel.id_panel for unique ID #}
-            <input type="number" id="vertical-{{ panel.id_panel }}" value="{{ panel.vertical_position|default:0 }}" step="any"> {# Added step="any" for float input #}
-            <label for="horizontal-{{ panel.id_panel }}">Горизонталь:</label> {# Use panel.id_panel for unique ID #}
-            <input type="number" id="horizontal-{{ panel.id_panel }}" value="{{ panel.horizontal_position|default:0 }}" step="any"> {# Added step="any" for float input #}
-            <button class="btn success-btn api-command-btn" data-command="ROTATE" data-hub-id="{{ panel.hub.id_hub }}" data-panel-id="{{ panel.id_panel }}">
-                <i class='bx bx-play'></i> Выполнить поворот
-            </button>
-        </div>
-
-        {# You might want to add hub-specific controls here if needed, but they were on the main page before #}
-        {# <div class="control-section"> #}
-        {#    <h3>Управление хабом {{ panel.hub.id_hub }}</h3> #}
-        {#    <div class="control-buttons"> #}
-        {#        <button class="btn primary-btn api-command-btn" data-command="RELOAD_HUB" data-hub-id="{{ panel.hub.id_hub }}">Перезагрузить хаб</button> #}
-        {#        <button class="btn secondary-btn api-command-btn" data-command="STATUS" data-hub-id="{{ panel.hub.id_hub }}">Статус хаба</button> #}
-        {#        <button class="btn secondary-btn api-command-btn" data-command="CHECK_STATUS" data-hub-id="{{ panel.hub.id_hub }}">Проверить статус хаба</button> #}
-        {#    </div> #}
-        {# </div> #}
-
-
+        {# Rotation controls (initially hidden) - только для Rotary #}
+        {% if panel.type == 'rotary' %}
+            <div class="rotate-controls" style="display: none;">
+                <label for="vertical-{{ panel.id_panel }}">Вертикаль:</label>
+                <input type="number" id="vertical-{{ panel.id_panel }}" value="{{ latest_panel_data.vertical_position|default:0 }}" step="any">
+                <label for="horizontal-{{ panel.id_panel }}">Горизонталь:</label>
+                <input type="number" id="horizontal-{{ panel.id_panel }}" value="{{ latest_panel_data.horizontal_position|default:0 }}" step="any">
+                <button class="btn success-btn api-command-btn" data-command="ROTATE" data-hub-id="{{ panel.hub.id_hub }}" data-panel-id="{{ panel.id_panel }}">
+                    <i class='bx bx-play'></i> Выполнить поворот
+                </button>
+            </div>
+        {% endif %}
     </div>
 
-     {# Area to display API response messages #}
-     <div id="apiResponseMessages" class="message-area" style="display: none;"></div>
-
+    <div id="apiResponseMessages" class="message-area" style="display: none;"></div>
 </div>
 
 <script>
@@ -230,6 +241,24 @@ document.addEventListener('DOMContentLoaded', function() {
     const apiCommandButtons = document.querySelectorAll('.api-command-btn');
     const rotateToggleButtons = document.querySelectorAll('.rotate-toggle-btn');
     const apiResponseMessages = document.getElementById('apiResponseMessages');
+    
+    function updateAutoRotateButton(button, status) {
+        button.dataset.currentStatus = status;
+        const icon = button.querySelector('i');
+        const textNode = button.childNodes[2];
+
+        button.classList.remove('secondary-btn', 'danger-btn');
+
+        if (status === 'on') {
+            icon.className = 'bx bx-toggle-left';
+            textNode.nodeValue = ' Автоповорот: Выключить';
+            button.classList.add('danger-btn');
+        } else {
+            icon.className = 'bx bx-toggle-right';
+            textNode.nodeValue = ' Автоповорот: Включить';
+            button.classList.add('secondary-btn');
+        }
+    }
 
     apiCommandButtons.forEach(button => {
         button.addEventListener('click', function() {
@@ -237,25 +266,49 @@ document.addEventListener('DOMContentLoaded', function() {
             const hubId = this.dataset.hubId;
             const panelId = this.dataset.panelId;
 
-            let payload = {
-                "command": command,
-                "hubId": hubId
-            };
-            console.log(payload);
-            if (panelId) {
-                payload["panelId"] = panelId;
-            }
+            let payload = {}; // Начинаем с пустого объекта
 
             if (command === "ROTATE") {
                 const verticalInput = document.getElementById(`vertical-{{ panel.id_panel }}`);
                 const horizontalInput = document.getElementById(`horizontal-{{ panel.id_panel }}`);
 
                 if (verticalInput && horizontalInput) {
-                    payload["verticalPosition"] = parseFloat(verticalInput.value);
-                    payload["horizontalPosition"] = parseFloat(horizontalInput.value);
+                    // Для ROTATE payload можно оставить с маленькой буквы, если API это позволяет
+                    // Либо так же переделать на заглавные
+                    payload = {
+                        "command": command,
+                        "hubId": hubId,
+                        "panelId": panelId,
+                        "verticalPosition": parseFloat(verticalInput.value),
+                        "horizontalPosition": parseFloat(horizontalInput.value)
+                    };
                 } else {
                     displayMessage("Ошибка: Не удалось найти поля для ввода координат.", "error");
                     return; 
+                }
+            } else if (command === "AUTO_ROTATE") { // ИЗМЕНЕНИЕ 2: Проверяем новую команду
+                let currentStatus = this.dataset.currentStatus;
+                let newStatus = (currentStatus === 'on' ? 'off' : 'on');
+                
+                // ИЗМЕНЕНИЕ 3: Формируем payload с заглавными ключами
+                payload = {
+                    "command": command, 
+                    "hubId": hubId,
+                    "panelId": panelId,
+                    "State": newStatus 
+                };
+                console.log(payload);
+                
+                updateAutoRotateButton(this, newStatus);
+
+            } else {
+                // Для остальных команд, например SEND_DATA
+                payload = {
+                    "command": command,
+                    "hubId": hubId,
+                };
+                if (panelId) {
+                    payload["panelId"] = panelId;
                 }
             }
 
@@ -265,43 +318,60 @@ document.addEventListener('DOMContentLoaded', function() {
 
     rotateToggleButtons.forEach(button => {
         button.addEventListener('click', function() {
-            const rotateControls = document.querySelector('.rotate-controls'); 
+            const rotateControls = this.closest('.control-section').querySelector('.rotate-controls'); 
             if (rotateControls) {
-
                 rotateControls.style.display = rotateControls.style.display === 'none' ? 'flex' : 'none';
             }
         });
     });
 
-
     function sendCommandToApi(payload) {
         const djangoApiUrl = "{% url 'api_send_command' %}"; 
+        
+        // Определяем имя команды для сообщений об ошибках
+        const commandName = payload.Command || payload.command;
 
         fetch(djangoApiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                // 'X-CSRFToken': '{{ csrf_token }}' // Не забудьте добавить, если требуется
             },
             body: JSON.stringify(payload),
         })
         .then(response => {
             const contentType = response.headers.get("content-type");
-            if (contentType && contentType.indexOf("application/json") !== -1) {
+            if (contentType && contentType.includes("application/json")) {
                 return response.json().then(data => {
                     if (response.ok) {
-                        displayMessage(`Команда "${payload.command}" успешно отправлена.`, "success", data.api_response);
+                        displayMessage(`Команда "${commandName}" успешно отправлена.`, "success", data.api_response);
                     } else {
-                        displayMessage(`Ошибка при отправке команды "${payload.command}": ${data.message}`, "error", data.api_response);
+                        displayMessage(`Ошибка при отправке команды "${commandName}": ${data.message}`, "error", data.api_response);
+                        // ИЗМЕНЕНИЕ 4: Откат UI при ошибке для AUTO_ROTATE
+                        if (commandName === "AUTO_ROTATE") {
+                            const button = document.querySelector(`[data-command="AUTO_ROTATE"][data-panel-id="${payload.PanelId}"]`);
+                            if (button) {
+                                updateAutoRotateButton(button, (payload.State === 'on' ? 'off' : 'on')); 
+                            }
+                        }
                     }
                 });
             } else {
-                 return response.text().then(text => {
-                     displayMessage(`Ошибка при отправке команды "${payload.command}": Неожиданный ответ от сервера.`, "error", text);
-                 });
+                return response.text().then(text => {
+                    displayMessage(`Ошибка при отправке команды "${commandName}": Неожиданный ответ от сервера.`, "error", text);
+                    throw new Error("Server response was not JSON.");
+                });
             }
         })
         .catch((error) => {
-            displayMessage(`Произошла ошибка сети при отправке команды "${payload.command}": ${error}`, "error");
+            displayMessage(`Произошла ошибка сети при отправке команды "${commandName}": ${error}`, "error");
+            // ИЗМЕНЕНИЕ 5: Откат UI при сетевой ошибке для AUTO_ROTATE
+            if (commandName === "AUTO_ROTATE") {
+                const button = document.querySelector(`[data-command="AUTO_ROTATE"][data-panel-id="${payload.PanelId}"]`);
+                if (button) {
+                    updateAutoRotateButton(button, (payload.State === 'on' ? 'off' : 'on')); 
+                }
+            }
         });
     }
 
@@ -311,13 +381,32 @@ document.addEventListener('DOMContentLoaded', function() {
         apiResponseMessages.classList.add(type); 
 
         if (apiResponse) {
-             apiResponseMessages.textContent += "\nОтвет API: " + JSON.stringify(apiResponse, null, 2);
+            let formattedResponse;
+            try {
+                // Пробуем парсить, если это строка, или просто форматируем, если объект
+                const responseObject = (typeof apiResponse === 'string') ? JSON.parse(apiResponse) : apiResponse;
+                formattedResponse = JSON.stringify(responseObject, null, 2);
+            } catch (e) {
+                formattedResponse = apiResponse; // Если не JSON, показываем как есть
+            }
+            apiResponseMessages.textContent += "\n\nОтвет API:\n" + formattedResponse;
         }
 
         apiResponseMessages.style.display = 'block';
     }
 
+    // Инициализация кнопки автоповорота при загрузке
+    const initialAutoRotateButton = document.querySelector('[data-command="AUTO_ROTATE"]');
+    if (initialAutoRotateButton) {
+        const initialStatus = initialAutoRotateButton.dataset.currentStatus;
+        updateAutoRotateButton(initialAutoRotateButton, initialStatus);
+    }
 });
 </script>
-
 {% endblock %}
+
+
+
+
+
+

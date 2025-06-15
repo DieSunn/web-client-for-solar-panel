@@ -663,7 +663,55 @@ body.night-mode .chart-loader {
     }
 }
 
+#map-and-list-container {
+  display: flex; /* Используем Flexbox для расположения элементов в ряд */
+  gap: 15px;      /* Пространство между картой и списком */
+  height: 60vh;   /* Задайте нужную высоту */
+}
+
+#modal_map {
+  flex: 3; /* Карта будет занимать 3/4 доступной ширины */
+  height: 100%;
+}
+
+#panel-list-container {
+  flex: 1; /* Список будет занимать 1/4 доступной ширины */
+  height: 100%;
+  overflow-y: auto; /* Добавляем прокрутку, если список не помещается */
+  border-left: 1px solid #ccc; /* Визуальный разделитель */
+  padding-left: 15px;
+}
+
+/* Стили для элементов списка */
+.panel-list-item {
+  padding: 8px;
+  cursor: pointer;
+  border-bottom: 1px solid #eee;
+  font-size: 0.9em;
+}
+
+.panel-list-item:hover {
+  background-color: #f0f0f0; /* Подсветка при наведении */
+}
+
 </style>
+
+<div class="modal fade" id="mapModal" tabindex="-1" aria-labelledby="mapModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="mapModalLabel">Карта панелей</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="map-and-list-container">
+          <div id="modal_map"></div>
+          <div id="panel-list-container"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -892,29 +940,32 @@ $(function() {
 function updateMapMarkers() {
     if (!modalMapInstance) return;
 
-    // Очистка старых маркеров
+    // <-- 1. Получаем контейнер для списка
+    const panelListContainer = document.getElementById('panel-list-container');
+
+    // Очистка старых маркеров и списка
     Object.values(markers).forEach(marker => marker.remove());
     markers = {};
+    panelListContainer.innerHTML = ''; // <-- 2. Очищаем старый список
 
     // Добавление новых маркеров из загруженных данных
     solarPanelData.forEach(p => {
         let lat = null;
         let lng = null;
-        // Попытка распарсить координаты из строки 'coordinates'
+        
+        // Попытка распарсить координаты (ваш код остается без изменений)
         if (p.coordinates) {
             try {
-                // Если coordinates - это JSON-строка, парсим ее
                 const coords = JSON.parse(p.coordinates);
                 lat = coords.lat;
                 lng = coords.lng;
             } catch (e) {
-                // Если парсинг JSON не удался, попробуем формат "lat,lng"
                 const parts = String(p.coordinates).split(',');
-                if (parts.length === 2) { // <--- Эта часть кода обрабатывает формат "lat,lng"
+                if (parts.length === 2) {
                     lat = parseFloat(parts[0].trim());
                     lng = parseFloat(parts[1].trim());
                 } else {
-                    console.warn(`Error parsing coordinates for panel ${p.id_panel}: Invalid format. Expected JSON or "lat,lng".`, p.coordinates);
+                    console.warn(`Error parsing coordinates for panel ${p.id_panel}: Invalid format.`, p.coordinates);
                 }
             }
         }
@@ -927,21 +978,40 @@ function updateMapMarkers() {
             }).addTo(modalMapInstance)
               .bindPopup(`<b>ID Панели:</b> ${p.id_panel}<br><b>Хаб:</b> ${p.hub_id || 'N/A'}<br><b>Координаты:</b> ${lat}, ${lng}`);
 
-            // Обработчик клика на маркер
+            // Обработчик клика на маркер (ваш код остается без изменений)
             marker.on('click', () => {
-                selectedPanelId = p.id_panel; // Обновляем ID
+                selectedPanelId = p.id_panel;
                 const panelText = `Панель ${p.id_panel} (Хаб: ${p.hub_id || 'N/A'})`;
-                selectedPanelNameDisplay.text(panelText); // Обновляем текст над графиками
-                mapModal.hide(); // Закрываем модальное окно
-                setActivePeriodButton(dayBtn); // Сбрасываем период на "День"
-                fetchData({ range: 'day' });   // Загружаем данные для выбранной панели
+                selectedPanelNameDisplay.text(panelText);
+                mapModal.hide();
+                setActivePeriodButton(dayBtn);
+                fetchData({ range: 'day' });
             });
             markers[p.id_panel] = marker;
+
+            // --- ✨ Новая часть: Создание элемента в списке ---
+            
+            // 3. Создаем HTML-элемент для списка
+            const listItem = document.createElement('div');
+            listItem.className = 'panel-list-item';
+            listItem.innerHTML = `<b>ID:</b> ${p.id_panel}<br><b>Хаб:</b> ${p.hub_id || 'N/A'}`;
+            
+            // 4. Добавляем обработчик клика на элемент списка
+            listItem.addEventListener('click', () => {
+                // Имитируем клик по соответствующему маркеру на карте
+                marker.fire('click');
+                // Дополнительно можно центрировать карту на маркере при клике в списке
+                modalMapInstance.setView([lat, lng], 15); // 15 - уровень зума
+            });
+            
+            // 5. Добавляем созданный элемент в контейнер списка
+            panelListContainer.appendChild(listItem);
+            
         } else {
             console.warn(`Panel ${p.id_panel} is missing or has invalid coordinates. Coordinates: '${p.coordinates}'`);
         }
     });
-    console.log("Map markers updated");
+    console.log("Map markers and panel list updated");
 }
 
   // Заполнение списка панелей в модальном окне

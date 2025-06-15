@@ -58,7 +58,7 @@
                             <span class="text nav-text">Таблицы</span>
                         </a>
                     </li>
-                    {% if user.is_superuser %}
+                    {% if user.is_superuser  %}
                     <li class="nav-link">
                         <a href="{% url 'hub_list' %}">
                             <i class='bx bx-planet icon'></i>
@@ -80,7 +80,11 @@
             <div class="bottom-content">
                   <li class="nav-link">
                     <a href="{% url 'logout' %}">
+                    {%if user.is_staff%}
                     <i class='bx bx-log-out icon'></i>
+                    {% else %}
+                    <i class='bx bx-log-in icon'></i>
+                    {% endif %}
                     <span class="text nav-text">Выход</span>
                     </a>
                 </li>

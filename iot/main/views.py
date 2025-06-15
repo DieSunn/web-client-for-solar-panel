@@ -507,7 +507,7 @@ class ManagementView(View):
         }
         return render(request, 'management.html', context)
 
-@method_decorator(login_required, name='dispatch')    
+@method_decorator(login_required, name='dispatch')     
 class PanelDetailView(View):
     def get(self, request, hub_id, panel_id, *args, **kwargs):
         night_mode = request.COOKIES.get('night_mode', 'off')
@@ -516,9 +516,18 @@ class PanelDetailView(View):
 
         panel = get_object_or_404(Panel.objects.select_related('hub'), hub__id_hub=hub_id, id_panel=panel_id)
 
+        # Получаем последнюю запись PanelData для данной панели
+        # Сортируем по дате и времени в убывающем порядке, затем берем первую (самую свежую)
+        latest_panel_data = PanelData.objects.filter(
+            id_hub=hub_id, 
+            id_panel=panel_id,
+        ).order_by('-date', '-time').first()
+
+
         context = {
             'panel': panel,
             'night_mode': night_mode,
+            'latest_panel_data': latest_panel_data, # Передаем либо реальную, либо фиктивную запись PanelData
         }
         return render(request, 'panel_detail.html', context)
 
@@ -659,6 +668,7 @@ class ApiCommandView(View):
             panel_id = data.get("panelId")
             vertical_position = data.get("verticalPosition")
             horizontal_position = data.get("horizontalPosition")
+            state = data.get('State')
 
             headers = {
                 "Content-Type": "application/json",
@@ -670,8 +680,11 @@ class ApiCommandView(View):
 
             api_payload = {"Command": command, "HubId": hub_id}
 
-            if command in ["SEND_DATA", "ROTATE", "STATUS", "CHECK_STATUS"] and panel_id:
+            if command in ["SEND_DATA", "ROTATE", "STATUS", "CHECK_STATUS", "AUTO_ROTATE"] and panel_id:
                 api_payload["PanelId"] = panel_id
+
+            if command == "AUTO_ROTATE":
+                api_payload["State"] = state
 
             if command == "ROTATE":
                 if vertical_position is not None and horizontal_position is not None:
@@ -680,7 +693,7 @@ class ApiCommandView(View):
                 else:
                     return JsonResponse({"status": "error", "message": "VerticalPosition and HorizontalPosition are required for ROTATE command"}, status=400)
 
-            response = requests.post(EXTERNAL_API_URL, json=api_payload, headers=headers)
+            response = requests.post("http://192.168.1.157:5000", json=api_payload, headers=headers)
 
             if response.status_code == 200:
                 try:

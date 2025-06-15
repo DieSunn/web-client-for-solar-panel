@@ -1,8 +1,13 @@
 {% load static %}
 
-{# No need for {% block content %} here, as it's already included in the original prompt. #}
 <style>
-  /* static/css/login_form.css (полностью переписанный) */
+/* --- Глобальный сброс для box-sizing --- */
+html {
+    box-sizing: border-box;
+}
+*, *::before, *::after {
+    box-sizing: inherit;
+}
 
 /* --- Светлая тема --- */
 
@@ -10,17 +15,17 @@
     max-width: 400px;
     margin: 60px auto;
     padding: 30px 35px;
-    background-color: #ffffff; /* был --sidebar-color */
+    background-color: #ffffff;
     border-radius: 8px;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
-    color: #707070; /* был --text-color */
+    color: #707070;
 }
 
 .auth-container h2 {
     text-align: center;
     margin-bottom: 30px;
     font-size: 26px;
-    color: #707070; /* был --text-color */
+    color: #707070;
     font-weight: 600;
 }
 
@@ -33,7 +38,7 @@
     margin-bottom: 8px;
     font-weight: 500;
     font-size: 14px;
-    color: #707070; /* был --text-color */
+    color: #707070;
 }
 
 .auth-container form input[type="text"],
@@ -41,19 +46,19 @@
 .auth-container form input[type="password"] {
     width: 100%;
     padding: 12px 15px;
-    border: 1px solid #dddddd; /* был --toggle-color */
+    border: 1px solid #dddddd;
     border-radius: 6px;
-    box-sizing: border-box;
+    /* box-sizing: border-box; -- Уже установлено глобально */
     font-size: 16px;
-    background-color: #eae8f6; /* был --body-color */
-    color: #707070; /* был --text-color */
+    background-color: #eae8f6;
+    color: #707070;
     transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 }
 
 .auth-container form input[type="text"]:focus,
 .auth-container form input[type="email"]:focus,
 .auth-container form input[type="password"]:focus {
-    border-color: #695cfe; /* был --primary-color */
+    border-color: #695cfe;
     outline: none;
     box-shadow: 0 0 0 3px rgba(105, 92, 254, 0.15);
 }
@@ -61,7 +66,7 @@
 .auth-container button[type="submit"] {
     width: 100%;
     padding: 12px 15px;
-    background-color: #695cfe; /* был --primary-color */
+    background-color: #695cfe;
     color: #ffffff;
     border: none;
     border-radius: 6px;
@@ -73,14 +78,14 @@
 }
 
 .auth-container button[type="submit"]:hover {
-    background-color: #5848d3; /* Затемненный #695cfe */
+    background-color: #5848d3;
 }
 
-/* New style for the "Guest Login" button */
+/* Style for the "На главную" button */
 .auth-container .guest-login-button {
     width: 100%;
     padding: 12px 15px;
-    background-color: #707070; /* A neutral color, like dark gray */
+    background-color: #707070;
     color: #ffffff;
     border: none;
     border-radius: 6px;
@@ -88,16 +93,15 @@
     font-weight: 600;
     cursor: pointer;
     transition: background-color 0.2s ease-in-out;
-    margin-top: 15px; /* Add some space above it */
-    text-align: center; /* Center the text inside the button */
-    display: block; /* Make it a block element to take full width */
-    text-decoration: none; /* Remove underline for links */
+    margin-top: 15px;
+    text-align: center;
+    display: block;
+    text-decoration: none;
 }
 
 .auth-container .guest-login-button:hover {
-    background-color: #555555; /* Darker gray on hover */
+    background-color: #555555;
 }
-
 
 .auth-container ul.errors {
     list-style-type: none;
@@ -122,36 +126,36 @@
 /* --- Темная тема (применяется, если на body есть класс .dark) --- */
 
 body.dark .auth-container {
-    background-color: #242526; /* был --sidebar-color (dark) */
+    background-color: #242526;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
-    color: #cccccc; /* был --text-color (dark) */
+    color: #cccccc;
 }
 
 body.dark .auth-container h2 {
-    color: #cccccc; /* был --text-color (dark) */
+    color: #cccccc;
 }
 
 body.dark .auth-container form label {
-    color: #cccccc; /* был --text-color (dark) */
+    color: #cccccc;
 }
 
 body.dark .auth-container form input[type="text"],
 body.dark .auth-container form input[type="email"],
 body.dark .auth-container form input[type="password"] {
-    border: 1px solid #4b545c; /* мой вариант для лучшего контраста, раньше был var(--toggle-color) -> #fff */
-    background-color: #2c3034; /* мой вариант для лучшего контраста */
-    color: #cccccc; /* был --text-color (dark) */
+    border: 1px solid #4b545c;
+    background-color: #2c3034;
+    color: #cccccc;
 }
 
 body.dark .auth-container form input[type="text"]:focus,
 body.dark .auth-container form input[type="email"]:focus,
 body.dark .auth-container form input[type="password"]:focus {
-    border-color: #695cfe; /* Яркий акцент для фокуса, вместо темного --primary-color (dark) */
-    box-shadow: 0 0 0 3px rgba(105, 92, 254, 0.25); /* Тень для темного режима */
+    border-color: #695cfe;
+    box-shadow: 0 0 0 3px rgba(105, 92, 254, 0.25);
 }
 
 body.dark .auth-container button[type="submit"] {
-    background-color: #695cfe; /* Яркий цвет кнопки, как в светлой теме, вместо темного --primary-color (dark) */
+    background-color: #695cfe;
     color: #ffffff;
 }
 
@@ -160,7 +164,7 @@ body.dark .auth-container button[type="submit"]:hover {
 }
 
 body.dark .auth-container .guest-login-button {
-    background-color: #5a5c5e; /* Darker neutral for dark mode */
+    background-color: #5a5c5e;
 }
 
 body.dark .auth-container .guest-login-button:hover {
@@ -175,26 +179,23 @@ body.dark .auth-container ul.errors {
 }
 </style>
 <div class="auth-container">
-  <h2>Вход</h2>
-  <form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Войти</button>
-  </form>
-  {# New Guest Login Button #}
-  <a href="{% url 'guest_login' %}" class="guest-login-button">Зайти как гость</a>
-  
-  {% if form.errors %}
-    <ul class="errors">
-      {% for field in form %}
-        {% for error in field.errors %}
-          <li><strong>{{ field.label }}:</strong> {{ error }}</li>
-        {% endfor %}
-      {% endfor %}
-      {% for error in form.non_field_errors %}
-        <li>{{ error }}</li>
-      {% endfor %}
-    </ul>
-  {% endif %}
+    <h2>Вход</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Войти</button>
+        <a href="{% url 'home' %}" class="guest-login-button">На главную</a>
+    </form>
+    {% if form.errors %}
+        <ul class="errors">
+            {% for field in form %}
+                {% for error in field.errors %}
+                    <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                {% endfor %}
+            {% endfor %}
+            {% for error in form.non_field_errors %}
+                <li>{{ error }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
 </div>
-{# Removed extra {% endblock %} as it's typically handled by a base template #}
