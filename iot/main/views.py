@@ -5,6 +5,7 @@ from django.shortcuts import get_object_or_404, render, redirect
 from django.http import JsonResponse
 from .models import Solar_Panel, Characteristics, Hub, Panel, PanelData, LatestPanelData, PanelStatus, PanelType
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.core import serializers
 from django.db import connections, ProgrammingError, OperationalError, transaction
 from django.utils.dateparse import parse_date, parse_time # Для парсинга строк даты/времени
@@ -40,6 +41,7 @@ logger = logging.getLogger(__name__)
 
 #Тут заменить на api сервера
 EXTERNAL_API_URL = "http://85.193.80.133:8080"  
+EXTERNAL_API_URLt = "http://192.168.1.157:5080"  
 ARCHIVE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'hub_archives')
 
 class DashboardView(View):
@@ -691,31 +693,34 @@ class ApiCommandView(View):
                     api_payload["VerticalPosition"] = vertical_position
                     api_payload["HorizontalPosition"] = horizontal_position
                 else:
-                    return JsonResponse({"status": "error", "message": "VerticalPosition and HorizontalPosition are required for ROTATE command"}, status=400)
+                    return JsonResponse({"status": "error", "message": "Для поворота панели необходимо указать координаты — вертикальную и горизонтальную позиции."}, status=400)
 
             response = requests.post("http://192.168.1.157:5000", json=api_payload, headers=headers)
 
             if response.status_code == 200:
                 try:
                     api_response_data = response.json()
-                    return JsonResponse({"status": "success", "api_response": api_response_data})
+                    sync_latest_panel_data_to_main_models(request)
+                    return JsonResponse({"status": "success", "Команда успешно отправлена. Устройство дало ответ.": api_response_data})
                 except json.JSONDecodeError:
-                    return JsonResponse({"status": "success", "message": "Command sent successfully, but API response is not JSON.", "api_response": response.text})
+                    sync_latest_panel_data_to_main_models(request)
+                    return JsonResponse({"status": "success", "message": "Команда отправлена, но ответ от устройства не удалось разобрать."})
             else:
                 try:
                     api_response_data = response.json()
-                    return JsonResponse({"status": "error", "message": f"API returned status code {response.status_code}", "api_response": api_response_data}, status=response.status_code)
+                    return JsonResponse({"status": "error", "message": f"Устройство вернуло ошибку (код {response.status_code})."}, status=response.status_code)
                 except json.JSONDecodeError:
-                    return JsonResponse({"status": "error", "message": f"API returned status code {response.status_code}", "api_response": response.text}, status=response.status_code)
+                    return JsonResponse({"status": "error", "message": f"Устройство вернуло ошибку (код {response.status_code}), но ответ не удалось разобрать."}, status=response.status_code)
 
 
         except json.JSONDecodeError:
-            return JsonResponse({"status": "error", "message": "Invalid JSON in request body"}, status=400)
+            return JsonResponse({"status": "error", "message": "Ошибка: не удалось обработать данные. Проверьте формат и попробуйте снова."}, status=400)
         except requests.exceptions.RequestException as e:
-            return JsonResponse({"status": "error", "message": f"Error communicating with external API: {e}"}, status=500)
+            return JsonResponse({"status": "error", "message": f"Не удалось установить соединение с устройством. Проверьте подключение и повторите попытку."}, status=500)
         except Exception as e:
-            return JsonResponse({"status": "error", "message": f"An unexpected error occurred: {e}"}, status=500)
-@method_decorator(login_required, name='dispatch')    
+            return JsonResponse({"status": "error", "message": f"Произошла непредвиденная ошибка. Пожалуйста, повторите попытку позже."}, status=500)
+        
+  
 def sync_latest_panel_data_to_main_models(request):
     db_alias = 'solar_panel_db'
     fetched_data = {}

@@ -1,3 +1,5 @@
+
+
 .content-table {
   border-collapse: collapse;
   margin: 25px 0;
@@ -26,6 +28,11 @@
 
 .content-table tbody tr:nth-of-type(even) {
   background-color: #f3f3f3;
+}
+
+
+.content-table tbody tr:nth-of-type(odd) {
+  background-color: #5c5c5c;
 }
 
 .content-table tbody tr:last-of-type {

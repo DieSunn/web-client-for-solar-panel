@@ -274,7 +274,42 @@ body {
     text-align: left;
     cursor: pointer;
     font-weight: bold;
-    color: #495057;
+    color:rgb(255, 255, 255);    // ...existing code...
+    document.querySelectorAll('th.sortable').forEach(headerCell => {
+        headerCell.addEventListener('click', () => {
+            const columnIndex = headerCell.cellIndex;
+            const rows = Array.from(table.tBodies[0].rows);
+            const isNumeric = ['panel_id', 'hub_id', 'horizontal', 'vertical', 'consumed', 'generated', 'battery'].includes(
+                headerCell.dataset.sort
+            );
+    
+            const direction = headerCell.classList.contains('asc') ? -1 : 1;
+    
+            rows.sort((a, b) => {
+                const aValue = a.cells[columnIndex].textContent.trim();
+                const bValue = b.cells[columnIndex].textContent.trim();
+    
+                if (headerCell.dataset.sort === 'date') {
+                    const dateA = new Date(aValue);
+                    const dateB = new Date(bValue);
+                    return direction * (dateA - dateB);
+                } else if (headerCell.dataset.sort === 'time') {
+                    return direction * aValue.localeCompare(bValue);
+                } else if (isNumeric) {
+                    return direction * (parseFloat(aValue) - parseFloat(bValue));
+                } else {
+                    return direction * aValue.localeCompare(bValue);
+                }
+            });
+    
+            table.tBodies[0].append(...rows);
+    
+            document.querySelectorAll('th.sortable').forEach(th => th.classList.remove('asc', 'desc'));
+            headerCell.classList.toggle('asc', direction === 1);
+            headerCell.classList.toggle('desc', direction === -1);
+        });
+    });
+    // ...existing code...
     position: relative;
 }
 
@@ -342,6 +377,8 @@ body {
     font-size: 1rem;
     color: #555;
 }
+
+
 
 .modal {
     display: none;

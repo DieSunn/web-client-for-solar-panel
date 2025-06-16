@@ -5,12 +5,6 @@
 <div class="dashboard-container">
   <header class="dashboard-header">
     <h1>Анализ энергопотребления</h1>
-    <div class="night-mode-toggle">
-      <label>
-        <input type="checkbox" id="nightModeSwitch" {% if night_mode == 'on' %}checked{% endif %}>
-        Ночной режим
-      </label>
-    </div>
   </header>
 
   <section class="controls">
@@ -51,7 +45,7 @@
 
   <section class="charts">
     <div class="chart-box">
-      <h2>Генерация vs Потребление (кВт)</h2>
+      <h2>Генерация vs Потребление (Вт)</h2>
       <canvas id="powerChart"></canvas>
     </div>
     <div class="chart-box">
@@ -65,15 +59,15 @@
     <div class="stats-cards">
        <div class="stat-card">
         <h3>Генерация</h3>
-        <p>Среднее: <span id="avgGeneration">–</span> кВт</p>
-        <p>Макс: <span id="maxGeneration">–</span> кВт</p>
-        <p>Мин: <span id="minGeneration">–</span> кВт</p>
+        <p>Среднее: <span id="avgGeneration">–</span> Вт</p>
+        <p>Макс: <span id="maxGeneration">–</span> Вт</p>
+        <p>Мин: <span id="minGeneration">–</span> Вт</p>
       </div>
       <div class="stat-card">
         <h3>Потребление</h3>
-        <p>Среднее: <span id="avgConsumption">–</span> кВт</p>
-        <p>Макс: <span id="maxConsumption">–</span> кВт</p>
-        <p>Мин: <span id="minConsumption">–</span> кВт</p>
+        <p>Среднее: <span id="avgConsumption">–</span> Вт</p>
+        <p>Макс: <span id="maxConsumption">–</span> Вт</p>
+        <p>Мин: <span id="minConsumption">–</span> Вт</p>
       </div>
       <div class="stat-card">
         <h3>Эффективность</h3>
@@ -132,79 +126,79 @@
 }
 
 /* Стили для ночного режима */
-body.night-mode {
-    --background-color: #2c3e50;
-    --card-bg: #34495e;
-    --header-bg: #2c3e50;
+body.dark {
+    --background-color:rgb(32, 32, 33);
+    --card-bg:rgb(40, 43, 45);
+    --header-bg:rgb(64, 64, 65);
     --text-color: #ecf0f1;
     --text-muted: #bdc3c7;
-    --border-color: #4a6179;
+    --border-color:rgb(97, 109, 121);
 }
-body.night-mode .custom-select,
-body.night-mode .custom-input,
-body.night-mode .daterangepicker .calendar-table,
-body.night-mode .daterangepicker .drp-buttons .btn,
-body.night-mode .modal-content {
-    background-color: #34495e;
+body.dark .custom-select,
+body.dark .custom-input,
+body.dark .daterangepicker .calendar-table,
+body.dark .daterangepicker .drp-buttons .btn,
+body.dark .modal-content {
+    background-color:rgb(47, 49, 51);
     color: #ecf0f1;
     border-color: #4a6179;
 }
-body.night-mode .daterangepicker td.off,
-body.night-mode .daterangepicker td.off.in-range,
-body.night-mode .daterangepicker td.off.start-date,
-body.night-mode .daterangepicker td.off.end-date {
+body.dark .daterangepicker td.off,
+body.dark .daterangepicker td.off.in-range,
+body.dark .daterangepicker td.off.start-date,
+body.dark .daterangepicker td.off.end-date {
     background-color: transparent;
     border-color: transparent;
-    color: #566f8c;
+    color:rgb(66, 70, 75);
 }
-body.night-mode .daterangepicker td.available:hover,
-body.night-mode .daterangepicker th.available:hover {
-    background-color: #4a6179;
+body.dark .daterangepicker td.available:hover,
+body.dark .daterangepicker th.available:hover {
+    background-color:rgb(55, 58, 61);
 }
-body.night-mode .daterangepicker td.active,
-body.night-mode .daterangepicker td.active:hover {
+body.dark .daterangepicker td.active,
+body.dark .daterangepicker td.active:hover {
     background-color: var(--primary-color) !important;
 }
-body.night-mode .btn {
-    background-color: #566f8c;
+body.dark .btn {
+    background-color:rgb(71, 77, 83);
     color: #ecf0f1;
 }
-body.night-mode .btn:hover {
+body.dark .btn:hover {
     background-color: #6d8caf;
 }
-body.night-mode .btn.active {
+body.dark .btn.active {
     background-color: var(--primary-color);
     color: white;
 }
-body.night-mode .btn-primary {
+body.dark .btn-primary {
     background-color: var(--primary-color);
     color: white;
 }
-body.night-mode .btn-primary:hover {
+body.dark .btn-primary:hover {
     background-color: var(--primary-hover);
 }
-body.night-mode .btn-map-trigger {
+body.dark .btn-map-trigger {
     background-color: var(--accent-color);
     color: white;
 }
-body.night-mode .btn-map-trigger:hover {
+body.dark .btn-map-trigger:hover {
     background-color: var(--accent-hover);
 }
-body.night-mode .modal-tabs .tab-link {
+body.dark .modal-tabs .tab-link {
     background-color: #566f8c;
     color: #ecf0f1;
 }
-body.night-mode .modal-tabs .tab-link.active {
+body.dark .modal-tabs .tab-link.active {
     background-color: var(--primary-color);
     color: white;
 }
-body.night-mode .panel-list li:hover {
+body.dark .panel-list li:hover {
     background-color: #4a6179;
 }
-body.night-mode .close-modal-btn {
+body.dark .close-modal-btn {
     color: #bdc3c7;
 }
-body.night-mode .close-modal-btn:hover {
+body.dark .close-modal-btn:hover {
     color: #ecf0f1;
 }
 /* Конец стилей ночного режима */
@@ -242,12 +236,12 @@ body {
     color: var(--text-color);
 }
 
-.night-mode-toggle label {
+.dark-toggle label {
     cursor: pointer;
     display: flex;
     align-items: center;
 }
-.night-mode-toggle input {
+.dark-toggle input {
     margin-right: 5px;
 }
 
@@ -321,7 +315,7 @@ body {
     background-color: #e9ecef;
     color: #333;
 }
-body.night-mode .btn:hover {
+body.dark .btn:hover {
     background-color: #4a6179;
     color: #ecf0f1;
 }
@@ -554,7 +548,7 @@ body.night-mode .btn:hover {
 .panel-list li:hover {
     background-color: #f0f4f8; /* Фон при наведении */
 }
-body.night-mode .panel-list li:hover {
+body.dark .panel-list li:hover {
     background-color: #4a6179;
 }
 
@@ -590,7 +584,7 @@ body.night-mode .panel-list li:hover {
     z-index: 10;
     border-radius: var(--border-radius);
 }
-body.night-mode .chart-loader {
+body.dark .chart-loader {
     background: rgba(44, 62, 80, 0.7);
 }
 .loading-spinner {
@@ -655,7 +649,7 @@ body.night-mode .chart-loader {
         flex-direction: column;
         align-items: flex-start;
     }
-    .night-mode-toggle {
+    .dark-toggle {
         margin-top: 10px;
     }
     .selected-panel-info h2 {
@@ -692,6 +686,26 @@ body.night-mode .chart-loader {
 
 .panel-list-item:hover {
   background-color: #f0f0f0; /* Подсветка при наведении */
+}
+
+body.dark .dashboard-container,
+body.dark .chart-box,
+body.dark .modal-content,
+body.dark .stat-card,
+body.dark .selected-panel-info {
+    background-color: #282b2d !important;
+    color: #ecf0f1 !important;
+    border-color: #4a6179 !important;
+    box-shadow: 0 0 20px rgba(44,62,80,0.15);
+}
+
+body.dark .panel-list-item {
+    background: #232425;
+    color: #ecf0f1;
+}
+
+body.dark .panel-list-item:hover {
+    background: #4a6179;
 }
 
 </style>
@@ -748,7 +762,7 @@ $(function() {
 
   // Проверка и применение ночного режима
   if (document.cookie.includes('night_mode=on')) {
-      $('body').addClass('night-mode');
+      $('body').addClass('dark');
       nightToggle.prop('checked', true);
   }
 
@@ -778,7 +792,7 @@ $(function() {
           plugins: { legend: { position: 'top', labels: { boxWidth: 15, usePointStyle: true }}, tooltip: { mode: 'index', intersect: false } },
           scales: {
             x: { title: { display: true, text: 'Время' }, ticks: { maxRotation: 0, minRotation: 0, autoSkip: true, maxTicksLimit: 10 }}, // Автопропуск меток
-            y: { beginAtZero: true, title: { display: true, text: 'Мощность (кВт)' }}
+            y: { beginAtZero: true, title: { display: true, text: 'Мощность (Вт)' }}
           }
         }
     });
@@ -880,7 +894,7 @@ $(function() {
     const eff = gen.map((g, index) => {
         const c = cons[index];
         if (typeof g === 'number' && typeof c === 'number' && g > 0) {
-            const efficiencyValue = (c / g) * 100;
+            const efficiencyValue = (g / c) * 100;
             return Math.min(efficiencyValue, 100).toFixed(1);
         }
         return 0;
@@ -988,8 +1002,6 @@ function updateMapMarkers() {
                 fetchData({ range: 'day' });
             });
             markers[p.id_panel] = marker;
-
-            // --- ✨ Новая часть: Создание элемента в списке ---
             
             // 3. Создаем HTML-элемент для списка
             const listItem = document.createElement('div');
@@ -1105,7 +1117,7 @@ function updateMapMarkers() {
     }
     const dates = currentData.date, gen = currentData.generated_power, cons = currentData.consumed_power;
     const eff = gen.map((g,i)=> g>0 ? Math.min((cons[i]/g*100), 100).toFixed(1) : 0);
-    let csv = 'Дата;Генерация (кВт);Потребление (кВт);Эффективность (%)\n';
+    let csv = 'Дата;Генерация (Вт);Потребление (Вт);Эффективность (%)\n';
     dates.forEach((d,i)=> csv += `${moment(d).format('DD.MM.YYYY HH:mm')};${gen[i]};${cons[i]};${eff[i]}\n`);
 
     const BOM = "\uFEFF";
@@ -1126,8 +1138,8 @@ function updateMapMarkers() {
   // Переключение ночного режима
   nightToggle.change(() => {
     const mode = nightToggle.is(':checked') ? 'on' : 'off';
-    $('body').toggleClass('night-mode', nightToggle.is(':checked'));
-    document.cookie = `night_mode=${mode}; path=/; max-age=31536000`; // Сохраняем на год
+    $('body').toggleClass('dark', nightToggle.is(':checked'));
+    document.cookie = `dark=${mode}; path=/; max-age=31536000`; // Сохраняем на год
   });
 
   // --- Логика модального окна ---

@@ -298,3 +298,60 @@ body.dark .switch::before {
   margin-top: 4px;
   font-size: 1.3em;
 }
+
+body.dark .main-content,
+body.dark .panel-detail-container,
+body.dark .control-section,
+body.dark .stat-card,
+body.dark .modal-content,
+body.dark .selected-panel-info {
+  background: #282b2d !important;
+  color: #ecf0f1 !important;
+  box-shadow: 0 0 20px rgba(44,62,80,0.15);
+  border-color: #4a6179 !important;
+}
+
+body.dark .content-table thead tr {
+  background-color: #3a3b3c !important;
+  color: #ecf0f1 !important;
+}
+
+body.dark .content-table tbody tr:nth-of-type(even) {
+  background-color: #232425 !important;
+}
+
+body.dark .content-table tbody td {
+  color: #ecf0f1 !important;
+}
+
+body.dark .content-table {
+  box-shadow: 0 0 20px rgba(44,62,80,0.15);
+  background: #232425;
+}
+
+body.dark .panel-list-item {
+  background: #232425;
+  color: #ecf0f1;
+}
+
+body.dark .panel-list-item:hover {
+  background: #4a6179;
+}
+
+body.dark .message-area {
+  background-color: #232425;
+  color: #ecf0f1;
+  border-color: #4a6179;
+}
+
+body.dark .message-area.success {
+  background-color: #1e2d24;
+  color: #4caf50;
+  border-color: #388e3c;
+}
+
+body.dark .message-area.error {
+  background-color: #2d1e1e;
+  color: #ff5252;
+  border-color: #b71c1c;
+}
