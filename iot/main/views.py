@@ -695,7 +695,7 @@ class ApiCommandView(View):
                 else:
                     return JsonResponse({"status": "error", "message": "Для поворота панели необходимо указать координаты — вертикальную и горизонтальную позиции."}, status=400)
 
-            response = requests.post("http://192.168.1.157:5000", json=api_payload, headers=headers)
+            response = requests.post(EXTERNAL_API_URL, json=api_payload, headers=headers)
 
             if response.status_code == 200:
                 try:
